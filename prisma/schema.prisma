@@ -1,0 +1,72 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Hospital {
+  id              String   @id @default(uuid())
+  name            String
+  address         String
+  lat             Float
+  lng             Float
+  distanceKm      Float
+  rating          Float
+  contactPhone    String
+  emergencyNumber String
+  beds            Json
+  specialties     String[]
+  createdAt       DateTime @default(now())
+}
+
+model Ambulance {
+  id              String   @id @default(uuid())
+  vehicleNumber   String
+  driverName      String
+  phone           String
+  type            String
+  status          String
+  lat             Float
+  lng             Float
+  hospitalId      String
+  createdAt       DateTime @default(now())
+}
+
+model Referral {
+  id                    String   @id @default(uuid())
+  patientName           String
+  patientAge            Int
+  gender                String
+  abhaId                String
+  referredByDoctor      String
+  referringHospital     String
+  receivingHospitalId   String
+  receivingHospitalName String
+  medicalSummary        String
+  requiredBedType       String
+  urgency               String
+  status                String
+  ambulanceAssignedId   String?
+  ambulanceVehicle      String?
+  etaMinutes            Int?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model BloodStock {
+  id             String   @id @default(uuid())
+  bloodGroup     String   @unique
+  unitsAvailable Int
+  location       String
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  timestamp DateTime @default(now())
+  actor     String
+  action    String
+  details   String
+}
