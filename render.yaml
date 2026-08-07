@@ -3,7 +3,7 @@ services:
     name: smart-medical-app-ecosystem
     env: node
     plan: free
-    buildCommand: npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     envVars:
       - key: GEMINI_API_KEY
