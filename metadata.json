@@ -1,0 +1,1 @@
+{"name":"Smart Medical App Ecosystem","description":"Comprehensive health management, AI diagnostics, live bed tracking, emergency SOS ambulance routing, medicine reminders with OCR, digital ABHA health records, and multi-role clinical ecosystem.","requestFramePermissions":["geolocation","camera","microphone"],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}
