@@ -43,7 +43,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const roles: { role: UserRole; label: string; icon: React.ReactNode; color: string }[] = [
-    { role: 'patient', label: 'Patient / General User', icon: <HeartPulse className="w-4 h-4" />, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    { role: 'patient', label: 'Patient Portal', icon: <HeartPulse className="w-4 h-4" />, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
     { role: 'doctor', label: 'Doctor Portal', icon: <Stethoscope className="w-4 h-4" />, color: 'bg-blue-50 text-blue-700 border-blue-200' },
     { role: 'hospital_admin', label: 'Hospital Admin Desk', icon: <Hospital className="w-4 h-4" />, color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
     { role: 'ambulance_driver', label: 'Ambulance Driver', icon: <Truck className="w-4 h-4" />, color: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -53,6 +53,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   const activeRoleObj = roles.find((r) => r.role === currentRole);
+  const isSuperAdmin = currentUser?.role === 'super_admin';
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-xs">
@@ -68,7 +69,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </span>
           <span className="text-slate-500">|</span>
           <span className="text-slate-300 hidden sm:inline">
-            ABHA & PostgreSQL Authentication Live
+            PostgreSQL Multi-Member Security Active
           </span>
           <span className="text-slate-500 hidden sm:inline">|</span>
           <button
@@ -85,11 +86,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="flex items-center gap-2">
               <span className="text-slate-300 font-bold flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-teal-400"></span>
-                {currentUser.name} ({currentUser.role})
+                {currentUser.name} ({currentUser.role.toUpperCase()})
               </span>
               <button
                 onClick={onLogout}
-                className="px-2 py-0.5 bg-slate-800 hover:bg-red-950 hover:text-red-300 text-slate-300 rounded text-[11px] flex items-center gap-1 border border-slate-700 transition-all cursor-pointer"
+                className="px-2 py-0.5 bg-slate-800 hover:bg-red-950 hover:text-red-300 text-slate-300 rounded text-[11px] flex items-center gap-1 border border-slate-700 transition-all cursor-pointer font-bold"
               >
                 <LogOut className="w-3 h-3" />
                 Sign Out
@@ -101,40 +102,43 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-md text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
             >
               <KeyRound className="w-3.5 h-3.5" />
-              Sign In / Auth Portal
+              Member Login / Register
             </button>
           )}
 
-          <span className="text-slate-600">|</span>
-
-          {/* Quick Persona Switch */}
-          <div className="relative group">
-            <button className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-100 px-2.5 py-1 rounded-md text-xs font-medium border border-slate-700 transition-colors cursor-pointer">
-              {activeRoleObj?.icon}
-              <span className="hidden sm:inline">{activeRoleObj?.label}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-            </button>
-            <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-lg shadow-xl border border-slate-200 py-1 hidden group-hover:block z-50 text-slate-800">
-              <div className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-slate-400 uppercase border-b border-slate-100">
-                Switch Role Persona
-              </div>
-              {roles.map((r) => (
-                <button
-                  key={r.role}
-                  onClick={() => onRoleChange(r.role)}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 transition-colors ${
-                    currentRole === r.role ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {r.icon}
-                    <span>{r.label}</span>
-                  </div>
-                  {currentRole === r.role && <UserCheck className="w-3.5 h-3.5 text-emerald-600" />}
+          {/* Persona Switch (Only allowed for Super Admin when logged in) */}
+          {isSuperAdmin && (
+            <>
+              <span className="text-slate-600">|</span>
+              <div className="relative group">
+                <button className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-100 px-2.5 py-1 rounded-md text-xs font-medium border border-slate-700 transition-colors cursor-pointer">
+                  {activeRoleObj?.icon}
+                  <span className="hidden sm:inline">Switch Role</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 </button>
-              ))}
-            </div>
-          </div>
+                <div className="absolute right-0 top-full mt-1 w-64 bg-white rounded-lg shadow-xl border border-slate-200 py-1 hidden group-hover:block z-50 text-slate-800">
+                  <div className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-slate-400 uppercase border-b border-slate-100">
+                    Super Admin View Switcher
+                  </div>
+                  {roles.map((r) => (
+                    <button
+                      key={r.role}
+                      onClick={() => onRoleChange(r.role)}
+                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 transition-colors ${
+                        currentRole === r.role ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {r.icon}
+                        <span>{r.label}</span>
+                      </div>
+                      {currentRole === r.role && <UserCheck className="w-3.5 h-3.5 text-emerald-600" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -156,7 +160,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500 hidden sm:block">
-                Connected Health, Live Bed Triage & Multi-Member Authentication Stack
+                National Connected Healthcare Portal
               </p>
             </div>
           </div>
@@ -166,7 +170,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {currentUser ? (
               <>
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span className="text-slate-500">Authenticated:</span>
+                <span className="text-slate-500">Member:</span>
                 <span className="font-bold text-slate-900">{currentUser.name}</span>
                 <span className="text-emerald-800 font-mono text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-bold uppercase">
                   {currentUser.role}
@@ -174,8 +178,8 @@ export const Navbar: React.FC<NavbarProps> = ({
               </>
             ) : (
               <>
-                <span className="text-slate-500">Active Mode:</span>
-                <span className="font-bold text-slate-800">{activeRoleObj?.label}</span>
+                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span className="text-slate-600 font-bold">Unauthenticated Visitor</span>
               </>
             )}
           </div>
@@ -183,13 +187,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Quick Action Controls */}
           <div className="flex items-center gap-3">
             {/* Login / Auth Button */}
-            {!currentUser && (
+            {!currentUser ? (
               <button
                 onClick={onOpenAuthModal}
                 className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-all cursor-pointer"
               >
                 <KeyRound className="w-4 h-4 text-teal-400" />
                 <span>Member Login</span>
+              </button>
+            ) : (
+              <button
+                onClick={onLogout}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border border-slate-200"
+              >
+                <LogOut className="w-4 h-4 text-slate-600" />
+                <span>Sign Out</span>
               </button>
             )}
 
@@ -202,18 +214,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <AlertTriangle className="w-4 h-4 fill-white text-red-600" />
               <span>EMERGENCY SOS</span>
             </button>
-
-            {/* Notification Bell */}
-            <div className="relative">
-              <button
-                onClick={() => setActiveTab('notifications')}
-                className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg relative transition-colors cursor-pointer"
-                title="Notifications"
-              >
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-              </button>
-            </div>
           </div>
         </div>
       </div>
