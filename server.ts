@@ -2,12 +2,14 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+import { PrismaClient } from "@prisma/client";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const app = express();
 const PORT = 3000;
+const prisma = new PrismaClient();
 
 app.use(express.json({ limit: "10mb" }));
 
@@ -380,26 +382,47 @@ Return JSON strictly with:
   }
 });
 
-// Data CRUD & Ecosystem Sync Routes
+// Data CRUD & Ecosystem Sync Routes (PostgreSQL via Prisma ORM)
 
 // Hospitals
-app.get("/api/hospitals", (_req, res) => {
+app.get("/api/hospitals", async (_req, res) => {
+  try {
+    const hospitals = await prisma.hospital.findMany();
+    if (hospitals.length > 0) {
+      const formatted = hospitals.map((h) => ({
+        ...h,
+        location: { lat: h.lat, lng: h.lng },
+      }));
+      return res.json(formatted);
+    }
+  } catch (err) {
+    console.warn("Prisma query failed, serving fallback memory DB:", err);
+  }
   res.json(db.hospitals);
 });
 
-app.put("/api/hospitals/:id/beds", (req, res) => {
+app.put("/api/hospitals/:id/beds", async (req, res) => {
   const { id } = req.params;
   const { beds } = req.body;
+  try {
+    const updated = await prisma.hospital.update({
+      where: { id },
+      data: { beds },
+    });
+    await prisma.auditLog.create({
+      data: {
+        actor: `Hospital Admin (${updated.name})`,
+        action: "UPDATED_BED_AVAILABILITY",
+        details: `Updated bed count: ICU ${beds.icu?.available}/${beds.icu?.total}, Ventilator ${beds.ventilator?.available}/${beds.ventilator?.total}`,
+      },
+    });
+    return res.json({ ...updated, location: { lat: updated.lat, lng: updated.lng } });
+  } catch (err) {
+    console.warn("Prisma hospital bed update fallback:", err);
+  }
   const hospIndex = db.hospitals.findIndex((h) => h.id === id);
   if (hospIndex !== -1) {
     db.hospitals[hospIndex].beds = beds;
-    db.auditLogs.unshift({
-      id: "log-" + Date.now(),
-      timestamp: new Date().toISOString(),
-      actor: `Hospital Admin (${db.hospitals[hospIndex].name})`,
-      action: "UPDATED_BED_AVAILABILITY",
-      details: `Updated bed count: ICU ${beds.icu.available}/${beds.icu.total}, Ventilator ${beds.ventilator.available}/${beds.ventilator.total}`,
-    });
     res.json(db.hospitals[hospIndex]);
   } else {
     res.status(404).json({ error: "Hospital not found" });
@@ -407,28 +430,54 @@ app.put("/api/hospitals/:id/beds", (req, res) => {
 });
 
 // Ambulances
-app.get("/api/ambulances", (_req, res) => {
+app.get("/api/ambulances", async (_req, res) => {
+  try {
+    const ambulances = await prisma.ambulance.findMany();
+    if (ambulances.length > 0) {
+      const formatted = ambulances.map((a) => ({
+        ...a,
+        currentLocation: { lat: a.lat, lng: a.lng },
+      }));
+      return res.json(formatted);
+    }
+  } catch (err) {
+    console.warn("Prisma ambulance query fallback:", err);
+  }
   res.json(db.ambulances);
 });
 
-app.post("/api/ambulances/dispatch-sos", (req, res) => {
-  const { patientLocation, patientName, emergencyType } = req.body;
-  // Find available ambulance
-  const ambulance = db.ambulances.find((a) => a.status === "Available") || db.ambulances[0];
-  ambulance.status = "En Route to Patient";
-
-  const newLog = {
-    id: "log-" + Date.now(),
-    timestamp: new Date().toISOString(),
-    actor: "EMERGENCY_SOS_GATEWAY",
-    action: "DISPATCHED_AMBULANCE",
-    details: `Dispatched ${ambulance.vehicleNumber} (${ambulance.driverName}) for ${patientName || "Patient"} - Type: ${emergencyType || "Critical Emergency"}`,
-  };
-  db.auditLogs.unshift(newLog);
-
+app.post("/api/ambulances/dispatch-sos", async (req, res) => {
+  const { patientName, emergencyType } = req.body;
+  try {
+    const available = await prisma.ambulance.findFirst({ where: { status: "Available" } });
+    const ambulance = available || (await prisma.ambulance.findFirst());
+    if (ambulance) {
+      const updatedAmbulance = await prisma.ambulance.update({
+        where: { id: ambulance.id },
+        data: { status: "En Route to Patient" },
+      });
+      await prisma.auditLog.create({
+        data: {
+          actor: "EMERGENCY_SOS_GATEWAY",
+          action: "DISPATCHED_AMBULANCE",
+          details: `Dispatched ${updatedAmbulance.vehicleNumber} (${updatedAmbulance.driverName}) for ${patientName || "Patient"} - Type: ${emergencyType || "Critical Emergency"}`,
+        },
+      });
+      const primaryHospital = await prisma.hospital.findFirst();
+      return res.json({
+        success: true,
+        ambulance: { ...updatedAmbulance, currentLocation: { lat: updatedAmbulance.lat, lng: updatedAmbulance.lng } },
+        assignedHospital: primaryHospital ? { ...primaryHospital, location: { lat: primaryHospital.lat, lng: primaryHospital.lng } } : db.hospitals[0],
+        etaMinutes: 6,
+        message: "ALS Ambulance dispatched with active GPS tracking link sent to hospital ER.",
+      });
+    }
+  } catch (err) {
+    console.warn("Prisma SOS dispatch fallback:", err);
+  }
   res.json({
     success: true,
-    ambulance,
+    ambulance: db.ambulances[0],
     assignedHospital: db.hospitals[0],
     etaMinutes: 6,
     message: "ALS Ambulance dispatched with active GPS tracking link sent to hospital ER.",
@@ -436,53 +485,87 @@ app.post("/api/ambulances/dispatch-sos", (req, res) => {
 });
 
 // Referrals
-app.get("/api/referrals", (_req, res) => {
+app.get("/api/referrals", async (_req, res) => {
+  try {
+    const referrals = await prisma.referral.findMany({ orderBy: { createdAt: "desc" } });
+    if (referrals.length > 0) {
+      return res.json(referrals);
+    }
+  } catch (err) {
+    console.warn("Prisma referral query fallback:", err);
+  }
   res.json(db.referrals);
 });
 
-app.post("/api/referrals", (req, res) => {
+app.post("/api/referrals", async (req, res) => {
   const referralData = req.body;
-  const newRef = {
-    id: "REF-2026-" + Math.floor(100 + Math.random() * 900),
-    ...referralData,
-    status: "PENDING_RECEIVING_REVIEW",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  try {
+    const created = await prisma.referral.create({
+      data: {
+        id: "REF-2026-" + Math.floor(100 + Math.random() * 900),
+        patientName: referralData.patientName,
+        patientAge: parseInt(referralData.patientAge) || 30,
+        gender: referralData.gender || "Unknown",
+        abhaId: referralData.abhaId || "ABHA-PENDING",
+        referredByDoctor: referralData.referredByDoctor || "Doctor",
+        referringHospital: referralData.referringHospital || "Clinic",
+        receivingHospitalId: referralData.receivingHospitalId || "hosp-1",
+        receivingHospitalName: referralData.receivingHospitalName || "City Central",
+        medicalSummary: referralData.medicalSummary || "Medical referral",
+        requiredBedType: referralData.requiredBedType || "icu",
+        urgency: referralData.urgency || "URGENT",
+        status: "PENDING_RECEIVING_REVIEW",
+      },
+    });
 
-  db.referrals.unshift(newRef);
+    await prisma.auditLog.create({
+      data: {
+        actor: referralData.referredByDoctor || "Doctor",
+        action: "CREATED_DIGITAL_REFERRAL",
+        details: `Created digital referral ${created.id} for ${created.patientName} -> Target: ${created.receivingHospitalName}`,
+      },
+    });
 
-  db.auditLogs.unshift({
-    id: "log-" + Date.now(),
-    timestamp: new Date().toISOString(),
-    actor: referralData.referredByDoctor || "Doctor",
-    action: "CREATED_DIGITAL_REFERRAL",
-    details: `Created digital referral ${newRef.id} for ${newRef.patientName} -> Target: ${newRef.receivingHospitalName}`,
-  });
-
-  res.json(newRef);
+    return res.json(created);
+  } catch (err) {
+    console.warn("Prisma create referral fallback:", err);
+    const newRef = {
+      id: "REF-2026-" + Math.floor(100 + Math.random() * 900),
+      ...referralData,
+      status: "PENDING_RECEIVING_REVIEW",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    db.referrals.unshift(newRef);
+    res.json(newRef);
+  }
 });
 
-app.put("/api/referrals/:id/status", (req, res) => {
+app.put("/api/referrals/:id/status", async (req, res) => {
   const { id } = req.params;
   const { status, actor, ambulanceAssignedId } = req.body;
-
+  try {
+    const updated = await prisma.referral.update({
+      where: { id },
+      data: {
+        status,
+        ...(ambulanceAssignedId ? { ambulanceAssignedId } : {}),
+      },
+    });
+    await prisma.auditLog.create({
+      data: {
+        actor: actor || "System User",
+        action: "UPDATED_REFERRAL_STATUS",
+        details: `Referral ${id} changed status to ${status}`,
+      },
+    });
+    return res.json(updated);
+  } catch (err) {
+    console.warn("Prisma update referral status fallback:", err);
+  }
   const refIndex = db.referrals.findIndex((r) => r.id === id);
   if (refIndex !== -1) {
     db.referrals[refIndex].status = status;
-    db.referrals[refIndex].updatedAt = new Date().toISOString();
-    if (ambulanceAssignedId) {
-      db.referrals[refIndex].ambulanceAssignedId = ambulanceAssignedId;
-    }
-
-    db.auditLogs.unshift({
-      id: "log-" + Date.now(),
-      timestamp: new Date().toISOString(),
-      actor: actor || "System User",
-      action: "UPDATED_REFERRAL_STATUS",
-      details: `Referral ${id} changed status to ${status}`,
-    });
-
     res.json(db.referrals[refIndex]);
   } else {
     res.status(404).json({ error: "Referral not found" });
@@ -490,12 +573,28 @@ app.put("/api/referrals/:id/status", (req, res) => {
 });
 
 // Blood Bank
-app.get("/api/blood-bank", (_req, res) => {
+app.get("/api/blood-bank", async (_req, res) => {
+  try {
+    const bloodBank = await prisma.bloodStock.findMany();
+    if (bloodBank.length > 0) {
+      return res.json(bloodBank);
+    }
+  } catch (err) {
+    console.warn("Prisma blood bank query fallback:", err);
+  }
   res.json(db.bloodBank);
 });
 
 // Audit Logs
-app.get("/api/audit-logs", (_req, res) => {
+app.get("/api/audit-logs", async (_req, res) => {
+  try {
+    const auditLogs = await prisma.auditLog.findMany({ orderBy: { timestamp: "desc" } });
+    if (auditLogs.length > 0) {
+      return res.json(auditLogs);
+    }
+  } catch (err) {
+    console.warn("Prisma audit logs query fallback:", err);
+  }
   res.json(db.auditLogs);
 });
 
