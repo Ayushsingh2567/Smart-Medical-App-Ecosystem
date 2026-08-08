@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Building2,
   CheckCircle2,
+  CreditCard,
   Filter,
   Hospital as HospIcon,
   MapPin,
@@ -12,7 +13,8 @@ import {
   Stethoscope,
   Wind,
 } from 'lucide-react';
-import { Hospital } from '../../types';
+import { Hospital, PaymentTransaction } from '../../types';
+import { PaymentModal } from '../payment/PaymentModal';
 
 export const BedAvailability: React.FC = () => {
   const [hospitals, setHospitals] = useState<Hospital[]>([]);
@@ -20,6 +22,10 @@ export const BedAvailability: React.FC = () => {
   const [filterBedType, setFilterBedType] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [bookedHospital, setBookedHospital] = useState<string | null>(null);
+
+  // Payment Modal State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedHospForBed, setSelectedHospForBed] = useState<Hospital | null>(null);
 
   // Add Hospital Modal
   const [showAddHospitalModal, setShowAddHospitalModal] = useState(false);
@@ -44,6 +50,18 @@ export const BedAvailability: React.FC = () => {
       console.error('Error fetching hospitals:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleInitiateBedBooking = (hosp: Hospital) => {
+    setSelectedHospForBed(hosp);
+    setShowPaymentModal(true);
+  };
+
+  const handleBedPaymentCompleted = (txn: PaymentTransaction) => {
+    if (selectedHospForBed) {
+      setBookedHospital(selectedHospForBed.name);
+      setTimeout(() => setBookedHospital(null), 6000);
     }
   };
 
@@ -99,13 +117,13 @@ export const BedAvailability: React.FC = () => {
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 px-3 py-1 rounded-full text-xs font-semibold mb-3">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            Real-Time Bed Availability Mesh
+            Real-Time Bed Availability & Seat Pre-booking
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
-            Live Hospital Bed & Emergency Triage Portal
+            Live Hospital Bed & ICU Reservation Portal
           </h1>
           <p className="text-slate-300 text-xs sm:text-sm">
-            Search nearby hospitals for real-time ICU, Ventilator, Oxygen, and Normal bed vacancies. Instant pre-registration with automated ER notification.
+            Search nearby hospitals for real-time ICU, Ventilator, Oxygen, and Normal bed vacancies. Instant seat pre-booking with integrated online payment.
           </p>
         </div>
 
@@ -151,8 +169,8 @@ export const BedAvailability: React.FC = () => {
         <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-3 text-xs text-emerald-900">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
           <div>
-            <span className="font-bold block">Pre-Registration Sent to {bookedHospital}!</span>
-            The hospital ER triage team has been alerted. Your emergency patient pass is active.
+            <span className="font-bold block">Hospital Bed Seat Reserved at {bookedHospital}!</span>
+            Seat booking payment confirmed. The hospital ER triage desk has been alerted for immediate admission.
           </div>
         </div>
       )}
@@ -193,17 +211,28 @@ export const BedAvailability: React.FC = () => {
             </div>
 
             <button
-              onClick={() => {
-                setBookedHospital(hosp.name);
-                setTimeout(() => setBookedHospital(null), 5000);
-              }}
-              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer transition-all"
+              onClick={() => handleInitiateBedBooking(hosp)}
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer transition-all flex items-center justify-center gap-2"
             >
-              Pre-Register Emergency Patient Bed
+              <CreditCard className="w-4 h-4 text-emerald-400" />
+              Pay & Reserve Hospital Bed Seat ($150 Deposit)
             </button>
           </div>
         ))}
       </div>
+
+      {/* Payment Modal */}
+      {showPaymentModal && selectedHospForBed && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          title="Hospital Emergency Bed Seat Pre-Booking"
+          amount={150.00}
+          serviceType="HOSPITAL_BED"
+          itemName={`Emergency ICU Bed Seat Reservation at ${selectedHospForBed.name}`}
+          onPaymentSuccess={handleBedPaymentCompleted}
+        />
+      )}
 
       {/* Add Hospital Modal */}
       {showAddHospitalModal && (

@@ -216,6 +216,10 @@ export interface ConsultationRecord {
   hospitalName: string;
   visitType?: string;
   visitDate: string;
+  problemSeverity?: 'MINOR' | 'MODERATE' | 'MAJOR' | 'CRITICAL';
+  minorSymptoms?: string; // e.g. Mild headache, cold, seasonal allergic rhinitis
+  majorDiseases?: string; // e.g. Coronary Artery Disease, Type 2 Diabetes, Chronic Kidney Disease
+  pastMedicalHistory?: string; // e.g. Previous surgeries, chronic conditions, family history
   chiefComplaints: string;
   diagnosis: string;
   bloodPressure?: string;
@@ -233,4 +237,17 @@ export interface ConsultationRecord {
   doctorNotes?: string;
   followUpDate?: string;
 }
+
+export interface PaymentTransaction {
+  id: string;
+  amount: number;
+  serviceType: 'DOCTOR_OPD' | 'HOSPITAL_BED' | 'LAB_BLOOD_TEST' | 'PHARMACY_HOME_DELIVERY';
+  paymentMethod: 'UPI' | 'CREDIT_CARD' | 'DEBIT_CARD' | 'NET_BANKING' | 'HEALTH_INSURANCE';
+  status: 'SUCCESS' | 'PENDING' | 'FAILED';
+  deliveryAddress?: string;
+  deliveryPhone?: string;
+  deliveryStatus?: 'ORDER_PLACED' | 'DISPATCHED' | 'OUT_FOR_DELIVERY' | 'DELIVERED';
+  timestamp: string;
+}
+
 

@@ -3,6 +3,7 @@ import {
   Calendar,
   CheckCircle2,
   Clock,
+  CreditCard,
   Mic,
   MicOff,
   PhoneOff,
@@ -13,16 +14,20 @@ import {
   VideoOff,
 } from 'lucide-react';
 import { sampleDoctors } from '../../data/mockData';
-import { Doctor } from '../../types';
+import { Doctor, PaymentTransaction } from '../../types';
+import { PaymentModal } from '../payment/PaymentModal';
 
 export const DoctorConsultation: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>(sampleDoctors);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string>('');
   const [activeVideoCall, setActiveVideoCall] = useState<Doctor | null>(null);
-  const [micOn, setMicOn] = useState(true);
-  const [cameraOn, setCameraOn] = useState(true);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+
+  // Payment Modal State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pendingDoc, setPendingDoc] = useState<Doctor | null>(null);
+  const [pendingSlot, setPendingSlot] = useState('');
 
   // Add Doctor Modal
   const [showAddDoctorModal, setShowAddDoctorModal] = useState(false);
@@ -31,11 +36,19 @@ export const DoctorConsultation: React.FC = () => {
   const [docHospital, setDocHospital] = useState('');
   const [docFee, setDocFee] = useState(75);
 
-  const handleBookSlot = (doc: Doctor, slot: string) => {
-    setSelectedDoctor(doc);
-    setSelectedSlot(slot);
-    setBookingSuccess(true);
-    setTimeout(() => setBookingSuccess(false), 5000);
+  const handleInitiateBooking = (doc: Doctor, slot: string) => {
+    setPendingDoc(doc);
+    setPendingSlot(slot);
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentCompleted = (txn: PaymentTransaction) => {
+    if (pendingDoc && pendingSlot) {
+      setSelectedDoctor(pendingDoc);
+      setSelectedSlot(pendingSlot);
+      setBookingSuccess(true);
+      setTimeout(() => setBookingSuccess(false), 5000);
+    }
   };
 
   const handleAddDoctor = (e: React.FormEvent) => {
@@ -94,8 +107,8 @@ export const DoctorConsultation: React.FC = () => {
         <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-3 text-xs text-emerald-900 animate-in fade-in">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
           <div>
-            <span className="font-bold block">Appointment Confirmed!</span>
-            Booked slot <span className="font-bold">{selectedSlot}</span> with {selectedDoctor?.name}. Notification sent to patient SMS & calendar.
+            <span className="font-bold block">Appointment Paid & Confirmed!</span>
+            Booked slot <span className="font-bold">{selectedSlot}</span> with {selectedDoctor?.name}. E-ticket & receipt dispatched to SMS & Health Vault.
           </div>
         </div>
       )}
@@ -110,18 +123,22 @@ export const DoctorConsultation: React.FC = () => {
                 <h3 className="font-extrabold text-base text-slate-900">{doc.name}</h3>
                 <p className="text-xs font-bold text-blue-600">{doc.specialty}</p>
                 <p className="text-xs text-slate-500 mt-1">{doc.hospitalName}</p>
+                <span className="inline-block mt-1 font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px]">
+                  Fee: ${doc.consultationFee}
+                </span>
               </div>
             </div>
 
             <div className="space-y-2 pt-2 border-t border-slate-100">
-              <span className="text-[11px] font-bold text-slate-500 block">Available OPD & Telemedicine Slots:</span>
+              <span className="text-[11px] font-bold text-slate-500 block">Select OPD Appointment Slot:</span>
               <div className="flex flex-wrap gap-2">
                 {doc.availableSlots.map((slot) => (
                   <button
                     key={slot}
-                    onClick={() => handleBookSlot(doc, slot)}
-                    className="px-3 py-1.5 bg-slate-50 hover:bg-emerald-600 hover:text-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-pointer transition-all"
+                    onClick={() => handleInitiateBooking(doc, slot)}
+                    className="px-3 py-1.5 bg-slate-50 hover:bg-emerald-600 hover:text-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 cursor-pointer transition-all flex items-center gap-1"
                   >
+                    <CreditCard className="w-3 h-3 text-slate-400" />
                     {slot}
                   </button>
                 ))}
@@ -132,11 +149,24 @@ export const DoctorConsultation: React.FC = () => {
               onClick={() => setActiveVideoCall(doc)}
               className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer flex items-center justify-center gap-2 transition-all"
             >
-              <Video className="w-4 h-4" /> Start Instant Video Telemedicine Call
+              <Video className="w-4 h-4" /> Launch Live Telemedicine Video Room
             </button>
           </div>
         ))}
       </div>
+
+      {/* Payment Modal */}
+      {showPaymentModal && pendingDoc && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          title="Doctor OPD Consultation Checkout"
+          amount={pendingDoc.consultationFee}
+          serviceType="DOCTOR_OPD"
+          itemName={`OPD Consultation Slot (${pendingSlot}) with ${pendingDoc.name}`}
+          onPaymentSuccess={handlePaymentCompleted}
+        />
+      )}
 
       {/* Add Doctor Modal */}
       {showAddDoctorModal && (

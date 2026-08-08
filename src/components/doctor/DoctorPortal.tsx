@@ -27,7 +27,7 @@ export const DoctorPortal: React.FC = () => {
   const [referrals, setReferrals] = useState<DigitalReferral[]>([]);
   const [consultations, setConsultations] = useState<ConsultationRecord[]>([]);
   
-  // Referral Modal state (Blank defaults for real usage)
+  // Referral Modal state
   const [showNewReferralModal, setShowNewReferralModal] = useState(false);
   const [patientName, setPatientName] = useState('');
   const [patientAge, setPatientAge] = useState<number | ''>('');
@@ -40,7 +40,7 @@ export const DoctorPortal: React.FC = () => {
   const [selectedReceivingHosp, setSelectedReceivingHosp] = useState('hosp-1');
   const [selectedReceivingHospName, setSelectedReceivingHospName] = useState('City Central Super Specialty Hospital');
 
-  // New In-Person Consultation Modal State (Blank defaults for real usage)
+  // In-Person Consultation Modal State (Detailed Minor to Major Problem Coverage)
   const [showConsultationModal, setShowConsultationModal] = useState(false);
   const [consultDoctorName, setConsultDoctorName] = useState('');
   const [consultHospitalName, setConsultHospitalName] = useState('');
@@ -48,6 +48,13 @@ export const DoctorPortal: React.FC = () => {
   const [consultAbhaId, setConsultAbhaId] = useState('');
   const [consultAge, setConsultAge] = useState<number | ''>('');
   const [consultGender, setConsultGender] = useState('Male');
+  
+  // Problem Details (Small to Big Problems)
+  const [problemSeverity, setProblemSeverity] = useState<'MINOR' | 'MODERATE' | 'MAJOR' | 'CRITICAL'>('MODERATE');
+  const [minorSymptoms, setMinorSymptoms] = useState('');
+  const [majorDiseases, setMajorDiseases] = useState('');
+  const [pastMedicalHistory, setPastMedicalHistory] = useState('');
+  
   const [chiefComplaints, setChiefComplaints] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
   const [bp, setBp] = useState('');
@@ -66,9 +73,6 @@ export const DoctorPortal: React.FC = () => {
   const [doctorNotes, setDoctorNotes] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
   const [savingConsultation, setSavingConsultation] = useState(false);
-  
-  // Search patient history state
-  const [selectedPatientHistory, setSelectedPatientHistory] = useState<ConsultationRecord[]>([]);
 
   useEffect(() => {
     fetchReferrals();
@@ -91,7 +95,6 @@ export const DoctorPortal: React.FC = () => {
       const data = await res.json();
       if (Array.isArray(data)) {
         setConsultations(data);
-        setSelectedPatientHistory(data);
       }
     } catch (err) {
       console.error('Error fetching consultations:', err);
@@ -127,8 +130,12 @@ export const DoctorPortal: React.FC = () => {
         patientAge: Number(consultAge) || 30,
         patientGender: consultGender,
         doctorName: consultDoctorName || 'Attending Physician, MD',
-        doctorSpecialty: 'General Medicine & OPD Care',
+        doctorSpecialty: 'General Medicine & Multi-Specialty Care',
         hospitalName: consultHospitalName || 'Medical Ecosystem Center',
+        problemSeverity,
+        minorSymptoms,
+        majorDiseases,
+        pastMedicalHistory,
         chiefComplaints,
         diagnosis,
         bloodPressure: bp || '120/80',
@@ -157,6 +164,9 @@ export const DoctorPortal: React.FC = () => {
       // Clear form
       setConsultPatientName('');
       setConsultAbhaId('');
+      setMinorSymptoms('');
+      setMajorDiseases('');
+      setPastMedicalHistory('');
       setChiefComplaints('');
       setDiagnosis('');
       setMedList([]);
@@ -234,17 +244,17 @@ export const DoctorPortal: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 bg-blue-500/20 border border-blue-400/30 text-blue-300 px-3 py-1 rounded-full text-xs font-semibold mb-3">
             <Stethoscope className="w-3.5 h-3.5" />
-            Physician OPD & Hospital Referral Workstation
+            Physician OPD & Multi-Disease Problem Workstation
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
-            Doctor & Specialist Medical Portal
+            Doctor Clinical Portal & Patient Health Vault
           </h1>
           <p className="text-slate-300 text-xs sm:text-sm max-w-xl">
-            Record in-person OPD consultation details, prescribe medicines, look up past patient health vault history, and dispatch digital referrals.
+            Record comprehensive patient problems from minor symptoms to critical chronic diseases, write e-prescriptions, and manage emergency hospital referrals.
           </p>
         </div>
 
@@ -254,7 +264,7 @@ export const DoctorPortal: React.FC = () => {
             className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-xl flex items-center gap-2 shadow-lg cursor-pointer transition-all"
           >
             <Plus className="w-4 h-4" />
-            + Record OPD Patient Visit
+            + Record Detailed Patient Problem & Visit
           </button>
 
           <button
@@ -278,7 +288,7 @@ export const DoctorPortal: React.FC = () => {
           }`}
         >
           <FileSpreadsheet className="w-4 h-4 inline mr-1.5 text-emerald-600" />
-          OPD Consultations ({consultations.length})
+          Patient Medical & OPD Records ({consultations.length})
         </button>
 
         <button
@@ -302,16 +312,16 @@ export const DoctorPortal: React.FC = () => {
               <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center">
                 <Stethoscope className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">No Consultation Records Yet</h3>
+              <h3 className="text-base font-bold text-slate-900">No Patient Records Added Yet</h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
-                Start recording patient OPD visits, clinical diagnoses, vitals, and e-prescriptions.
+                Record detailed patient problems (minor symptoms, major chronic diseases, surgeries, e-prescriptions).
               </p>
               <button
                 onClick={() => setShowConsultationModal(true)}
                 className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl inline-flex items-center gap-2 cursor-pointer shadow-md"
               >
                 <Plus className="w-4 h-4" />
-                Record First OPD Patient Visit
+                Record First Patient Problem & OPD Visit
               </button>
             </div>
           ) : (
@@ -320,17 +330,23 @@ export const DoctorPortal: React.FC = () => {
                 <div key={c.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <div>
-                      <h4 className="font-extrabold text-sm text-slate-900">{c.patientName}</h4>
+                      <h4 className="font-extrabold text-sm text-slate-900">{c.patientName} (Age: {c.patientAge})</h4>
                       <span className="text-xs font-mono font-bold text-teal-700">{c.patientAbhaId}</span>
                     </div>
-                    <span className="text-[10px] font-bold bg-slate-100 px-2.5 py-1 rounded-full text-slate-700">
-                      {new Date(c.createdAt).toLocaleDateString()}
+                    <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase ${
+                      c.problemSeverity === 'CRITICAL' || c.problemSeverity === 'MAJOR'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {c.problemSeverity || 'MODERATE'} SEVERITY
                     </span>
                   </div>
 
                   <div className="text-xs space-y-1 text-slate-700">
-                    <p><strong>Chief Complaints:</strong> {c.chiefComplaints}</p>
-                    <p className="text-emerald-800 font-bold"><strong>Diagnosis:</strong> {c.diagnosis}</p>
+                    <p className="text-emerald-900 font-extrabold"><strong>Primary Diagnosis:</strong> {c.diagnosis}</p>
+                    {c.minorSymptoms && <p><strong>Minor Symptoms:</strong> {c.minorSymptoms}</p>}
+                    {c.majorDiseases && <p className="text-red-700"><strong>Major Systemic Problems:</strong> {c.majorDiseases}</p>}
+                    {c.pastMedicalHistory && <p><strong>Past Medical History:</strong> {c.pastMedicalHistory}</p>}
                     <p><strong>Vitals:</strong> BP {c.bloodPressure} | HR {c.heartRate} bpm | SpO2 {c.spO2}%</p>
                   </div>
 
@@ -340,7 +356,7 @@ export const DoctorPortal: React.FC = () => {
                       <div className="flex flex-wrap gap-1.5">
                         {c.prescribedMedications.map((m: any, idx: number) => (
                           <span key={idx} className="px-2 py-0.5 bg-slate-100 text-slate-800 text-[10px] font-bold rounded">
-                            {m.name} ({m.dosage})
+                            💊 {m.name} ({m.dosage})
                           </span>
                         ))}
                       </div>
@@ -361,10 +377,7 @@ export const DoctorPortal: React.FC = () => {
               <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 mx-auto flex items-center justify-center">
                 <Hospital className="w-6 h-6" />
               </div>
-              <h3 className="text-base font-bold text-slate-900">No Emergency Referrals Dispatched</h3>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
-                Create digital hospital-to-hospital referrals for ICU, ventilator, or emergency bed allocations.
-              </p>
+              <h3 className="text-base font-bold text-slate-900">No Referrals Dispatched Yet</h3>
               <button
                 onClick={() => setShowNewReferralModal(true)}
                 className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl inline-flex items-center gap-2 cursor-pointer shadow-md"
@@ -379,7 +392,7 @@ export const DoctorPortal: React.FC = () => {
                 <div key={r.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <div>
-                      <h4 className="font-extrabold text-sm text-slate-900">{r.patientName} (Age: {r.patientAge})</h4>
+                      <h4 className="font-extrabold text-sm text-slate-900">{r.patientName}</h4>
                       <span className="text-xs font-mono font-bold text-teal-700">{r.abhaId}</span>
                     </div>
                     <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2.5 py-1 rounded-full">
@@ -389,7 +402,7 @@ export const DoctorPortal: React.FC = () => {
                   <div className="text-xs text-slate-700 space-y-1">
                     <p><strong>Receiving Hospital:</strong> {r.receivingHospitalName}</p>
                     <p><strong>Required Bed:</strong> {r.requiredBedType.toUpperCase()}</p>
-                    <p><strong>Medical Summary:</strong> {r.medicalSummary}</p>
+                    <p><strong>Summary:</strong> {r.medicalSummary}</p>
                   </div>
                 </div>
               ))}
@@ -398,18 +411,18 @@ export const DoctorPortal: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL 1: Record OPD Patient Consultation */}
+      {/* MODAL 1: Record Detailed Patient Problems (Minor to Major) */}
       {showConsultationModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 my-6">
+          <div className="bg-white rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 my-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
                   <Stethoscope className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900">Record In-Person OPD Patient Visit</h3>
-                  <p className="text-xs text-slate-500">Save clinical observations & e-prescription to ABHA Vault</p>
+                  <h3 className="text-base font-extrabold text-slate-900">Record Comprehensive Patient Problems & OPD Visit</h3>
+                  <p className="text-xs text-slate-500">Document minor complaints, major chronic diseases, vitals, & e-prescriptions</p>
                 </div>
               </div>
               <button onClick={() => setShowConsultationModal(false)} className="text-slate-400 font-bold hover:text-slate-800 text-sm cursor-pointer">✕</button>
@@ -439,16 +452,16 @@ export const DoctorPortal: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Patient Full Name *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Patient Name *</label>
                   <input
                     type="text"
                     required
                     value={consultPatientName}
                     onChange={(e) => setConsultPatientName(e.target.value)}
                     placeholder="Enter patient name"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
                   />
                 </div>
                 <div>
@@ -469,12 +482,12 @@ export const DoctorPortal: React.FC = () => {
                       value={consultAge}
                       onChange={(e) => setConsultAge(e.target.value ? Number(e.target.value) : '')}
                       placeholder="Age"
-                      className="w-1/2 px-3 py-2 rounded-xl border border-slate-300 text-xs"
+                      className="w-1/2 px-2 py-2 rounded-xl border border-slate-300 text-xs"
                     />
                     <select
                       value={consultGender}
                       onChange={(e) => setConsultGender(e.target.value)}
-                      className="w-1/2 px-2 py-2 rounded-xl border border-slate-300 text-xs"
+                      className="w-1/2 px-1 py-2 rounded-xl border border-slate-300 text-xs"
                     >
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
@@ -482,49 +495,91 @@ export const DoctorPortal: React.FC = () => {
                     </select>
                   </div>
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Problem Severity</label>
+                  <select
+                    value={problemSeverity}
+                    onChange={(e) => setProblemSeverity(e.target.value as any)}
+                    className="w-full px-2 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-800"
+                  >
+                    <option value="MINOR">MINOR (Mild Symptoms)</option>
+                    <option value="MODERATE">MODERATE (Acute Disease)</option>
+                    <option value="MAJOR">MAJOR (Chronic Disorder)</option>
+                    <option value="CRITICAL">CRITICAL (Emergency / Intensive)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Detailed Minor to Major Problems Input Section */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <span className="text-xs font-extrabold text-slate-900 block border-b border-slate-200 pb-2">
+                  Detailed Patient Problem Classification (Small to Big Problems)
+                </span>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">1. Minor / Small Symptoms (e.g. Mild headache, fever, runny nose, rash)</label>
+                  <input
+                    type="text"
+                    value={minorSymptoms}
+                    onChange={(e) => setMinorSymptoms(e.target.value)}
+                    placeholder="Describe minor day-to-day symptoms..."
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">2. Major / Serious Medical Problems (e.g. Heart Disease, Diabetes, Asthma, Renal Failure)</label>
+                  <textarea
+                    rows={2}
+                    value={majorDiseases}
+                    onChange={(e) => setMajorDiseases(e.target.value)}
+                    placeholder="Describe major systemic diseases, chronic conditions, organ dysfunctions..."
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white font-medium text-red-950"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">3. Past Surgeries, Hospitalizations & Family History</label>
+                  <input
+                    type="text"
+                    value={pastMedicalHistory}
+                    onChange={(e) => setPastMedicalHistory(e.target.value)}
+                    placeholder="e.g. Appendectomy 2021, Hypertension, Penicillin Allergy..."
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Chief Complaints</label>
-                <input
-                  type="text"
-                  value={chiefComplaints}
-                  onChange={(e) => setChiefComplaints(e.target.value)}
-                  placeholder="e.g. Fever, cough, chest discomfort for 3 days"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Clinical Diagnosis *</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Primary Clinical Diagnosis *</label>
                 <input
                   type="text"
                   required
                   value={diagnosis}
                   onChange={(e) => setDiagnosis(e.target.value)}
-                  placeholder="e.g. Acute Viral Bronchitis & Hypertension"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold"
+                  placeholder="e.g. Essential Hypertension & Acute Rhinopharyngitis"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold"
                 />
               </div>
 
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                <span className="text-xs font-bold text-slate-800 block">Patient Vitals</span>
+                <span className="text-xs font-bold text-slate-800 block">Vitals Recording</span>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                   <div>
                     <span className="text-[10px] text-slate-500 block">BP (mmHg)</span>
-                    <input type="text" value={bp} onChange={(e) => setBp(e.target.value)} placeholder="120/80" className="w-full px-2 py-1.5 border rounded-lg" />
+                    <input type="text" value={bp} onChange={(e) => setBp(e.target.value)} placeholder="120/80" className="w-full px-2 py-1.5 border rounded-lg bg-white" />
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-500 block">Pulse (bpm)</span>
-                    <input type="number" value={pulse} onChange={(e) => setPulse(e.target.value ? Number(e.target.value) : '')} placeholder="72" className="w-full px-2 py-1.5 border rounded-lg" />
+                    <input type="number" value={pulse} onChange={(e) => setPulse(e.target.value ? Number(e.target.value) : '')} placeholder="72" className="w-full px-2 py-1.5 border rounded-lg bg-white" />
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-500 block">Temp (°F)</span>
-                    <input type="number" value={temp} onChange={(e) => setTemp(e.target.value ? Number(e.target.value) : '')} placeholder="98.6" className="w-full px-2 py-1.5 border rounded-lg" />
+                    <input type="number" value={temp} onChange={(e) => setTemp(e.target.value ? Number(e.target.value) : '')} placeholder="98.6" className="w-full px-2 py-1.5 border rounded-lg bg-white" />
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-500 block">SpO2 (%)</span>
-                    <input type="number" value={spO2Val} onChange={(e) => setSpO2Val(e.target.value ? Number(e.target.value) : '')} placeholder="99" className="w-full px-2 py-1.5 border rounded-lg" />
+                    <input type="number" value={spO2Val} onChange={(e) => setSpO2Val(e.target.value ? Number(e.target.value) : '')} placeholder="99" className="w-full px-2 py-1.5 border rounded-lg bg-white" />
                   </div>
                 </div>
               </div>
@@ -537,9 +592,9 @@ export const DoctorPortal: React.FC = () => {
                 </span>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <input type="text" value={medName} onChange={(e) => setMedName(e.target.value)} placeholder="Medicine Name" className="px-2.5 py-1.5 text-xs border rounded-xl" />
-                  <input type="text" value={medDosage} onChange={(e) => setMedDosage(e.target.value)} placeholder="Dosage (e.g. 500mg)" className="px-2.5 py-1.5 text-xs border rounded-xl" />
-                  <select value={medFrequency} onChange={(e) => setMedFrequency(e.target.value)} className="px-2.5 py-1.5 text-xs border rounded-xl">
+                  <input type="text" value={medName} onChange={(e) => setMedName(e.target.value)} placeholder="Medicine Name" className="px-2.5 py-1.5 text-xs border rounded-xl bg-white" />
+                  <input type="text" value={medDosage} onChange={(e) => setMedDosage(e.target.value)} placeholder="Dosage (e.g. 500mg)" className="px-2.5 py-1.5 text-xs border rounded-xl bg-white" />
+                  <select value={medFrequency} onChange={(e) => setMedFrequency(e.target.value)} className="px-2.5 py-1.5 text-xs border rounded-xl bg-white">
                     <option value="1-0-0 (Morning)">1-0-0 (Morning)</option>
                     <option value="1-0-1 (Morning & Night)">1-0-1 (Morning & Night)</option>
                     <option value="1-1-1 (Thrice Daily)">1-1-1 (Thrice Daily)</option>
@@ -562,28 +617,6 @@ export const DoctorPortal: React.FC = () => {
                   </div>
                 )}
               </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Recommended Diagnostics & Lab Tests</label>
-                <input
-                  type="text"
-                  value={recommendedTestsInput}
-                  onChange={(e) => setRecommendedTestsInput(e.target.value)}
-                  placeholder="e.g. Complete Blood Count (CBC), Lipid Profile, ECG"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Doctor Advice & Notes</label>
-                <textarea
-                  rows={2}
-                  value={doctorNotes}
-                  onChange={(e) => setDoctorNotes(e.target.value)}
-                  placeholder="Dietary advice, lifestyle changes, precautions..."
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
-                />
-              </div>
             </div>
 
             <button
@@ -591,7 +624,7 @@ export const DoctorPortal: React.FC = () => {
               disabled={savingConsultation}
               className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all disabled:opacity-50"
             >
-              {savingConsultation ? 'Saving Record...' : 'Save & Publish Consultation Record to ABHA Vault'}
+              {savingConsultation ? 'Saving Record...' : 'Save & Publish Detailed Record to ABHA Vault'}
             </button>
           </div>
         </div>
@@ -650,50 +683,6 @@ export const DoctorPortal: React.FC = () => {
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
                 />
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Required Bed Type</label>
-                  <select
-                    value={requiredBedType}
-                    onChange={(e) => setRequiredBedType(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold"
-                  >
-                    <option value="icu">ICU Bed</option>
-                    <option value="ventilator">Ventilator Bed</option>
-                    <option value="oxygen">Oxygen Supported Bed</option>
-                    <option value="normal">Normal Ward Bed</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Receiving Hospital</label>
-                  <input
-                    type="text"
-                    value={selectedReceivingHospName}
-                    onChange={(e) => setSelectedReceivingHospName(e.target.value)}
-                    placeholder="Enter hospital name"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleRunAiHospitalMatch}
-                disabled={loadingAiMatch || !medicalSummary}
-                className="w-full py-2.5 bg-indigo-50 border border-indigo-200 text-indigo-900 font-bold rounded-xl text-xs flex items-center justify-center gap-2 hover:bg-indigo-100 cursor-pointer disabled:opacity-50"
-              >
-                <Sparkles className="w-4 h-4 text-indigo-600" />
-                {loadingAiMatch ? 'AI Matching...' : 'Run Gemini AI Smart Hospital Match'}
-              </button>
-
-              {aiMatchResult && (
-                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-xs space-y-1">
-                  <span className="font-bold text-indigo-900">AI Recommendation:</span>
-                  <p className="text-indigo-950">{aiMatchResult.recommendation}</p>
-                </div>
-              )}
 
               <button
                 type="button"

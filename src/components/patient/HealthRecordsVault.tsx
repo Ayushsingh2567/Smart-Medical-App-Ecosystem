@@ -4,6 +4,7 @@ import {
   AlertCircle,
   Calendar,
   CheckCircle2,
+  CreditCard,
   Download,
   Edit,
   FileCheck,
@@ -14,11 +15,13 @@ import {
   ShieldCheck,
   Sparkles,
   Stethoscope,
+  TestTube,
   Upload,
   User,
   UserCheck,
 } from 'lucide-react';
-import { ConsultationRecord, LabReport } from '../../types';
+import { ConsultationRecord, LabReport, PaymentTransaction } from '../../types';
+import { PaymentModal } from '../payment/PaymentModal';
 
 export const HealthRecordsVault: React.FC = () => {
   // Load real user profile from session or local state
@@ -37,11 +40,14 @@ export const HealthRecordsVault: React.FC = () => {
   const [consultations, setConsultations] = useState<ConsultationRecord[]>([]);
   const [labReports, setLabReports] = useState<LabReport[]>([]);
   const [selectedReport, setSelectedReport] = useState<LabReport | null>(null);
-  const [loadingConsultations, setLoadingConsultations] = useState(true);
 
   // Modals
   const [showEditVitalsModal, setShowEditVitalsModal] = useState(false);
   const [showAddLabModal, setShowAddLabModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedTestName, setSelectedTestName] = useState('Comprehensive Blood Count (CBC) & Lipid Panel');
+  const [testCost, setTestCost] = useState(55.00);
+  const [bookingToast, setBookingToast] = useState('');
 
   // Add Lab Form States
   const [labTestName, setLabTestName] = useState('');
@@ -72,9 +78,29 @@ export const HealthRecordsVault: React.FC = () => {
       }
     } catch (err) {
       console.error('Error fetching patient consultations:', err);
-    } finally {
-      setLoadingConsultations(false);
     }
+  };
+
+  const handleInitiateLabTestPayment = (testName: string, price: number) => {
+    setSelectedTestName(testName);
+    setTestCost(price);
+    setShowPaymentModal(true);
+  };
+
+  const handleLabPaymentCompleted = (txn: PaymentTransaction) => {
+    const newReport: LabReport = {
+      id: 'LAB-' + Math.floor(100000 + Math.random() * 900000),
+      testName: selectedTestName,
+      category: 'Hematology & Pathology',
+      date: new Date().toISOString().split('T')[0],
+      labName: 'Central Diagnostics Lab & Home Collection',
+      status: 'Pending Review',
+      keyResults: [],
+      aiSummary: `Blood sample home collection booked! Phlebotomist dispatched to ${txn.deliveryAddress || 'Registered Home Address'}.`,
+    };
+    setLabReports((prev) => [newReport, ...prev]);
+    setBookingToast(`Lab Blood Test Paid & Confirmed! Phlebotomist assigned for home sample collection.`);
+    setTimeout(() => setBookingToast(''), 7000);
   };
 
   const handleAddLabReport = (e: React.FormEvent) => {
@@ -194,16 +220,30 @@ export const HealthRecordsVault: React.FC = () => {
             </div>
           </div>
 
-          <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
+          <div className="pt-4 mt-4 border-t border-slate-100 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => handleInitiateLabTestPayment('Complete Blood Count (CBC) & Lipid Profile Test', 55.00)}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              <TestTube className="w-4 h-4" /> Book & Pay Blood Test ($55)
+            </button>
+
             <button
               onClick={() => setShowAddLabModal(true)}
               className="px-4 py-2 bg-slate-900 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 hover:bg-slate-800 cursor-pointer shadow-xs"
             >
-              <Plus className="w-4 h-4" /> Add / Upload New Lab Report
+              <Plus className="w-4 h-4" /> Add / Upload Lab Report
             </button>
           </div>
         </div>
       </div>
+
+      {bookingToast && (
+        <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-3 text-xs text-emerald-900 animate-in fade-in">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          <span className="font-bold">{bookingToast}</span>
+        </div>
+      )}
 
       {/* OPD Consultations Timeline Section */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
@@ -211,7 +251,7 @@ export const HealthRecordsVault: React.FC = () => {
           <div>
             <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
               <Stethoscope className="w-5 h-5 text-indigo-600" />
-              OPD Consultation History & Doctor E-Prescriptions
+              OPD Consultation History & Detailed Problem Records
             </h3>
             <p className="text-xs text-slate-500">Live consultation timeline synced from hospital doctors</p>
           </div>
@@ -235,11 +275,19 @@ export const HealthRecordsVault: React.FC = () => {
                     <span className="text-slate-500 block">Consultant: <strong>{c.doctorName}</strong> ({c.hospitalName})</span>
                   </div>
                   <span className="bg-slate-200 px-2.5 py-1 rounded-full font-bold text-slate-700">
-                    {new Date(c.createdAt).toLocaleDateString()}
+                    {new Date(c.visitDate || Date.now()).toLocaleDateString()}
                   </span>
                 </div>
+
+                {/* Display Minor & Major Problems */}
+                <div className="text-xs space-y-1 text-slate-700">
+                  {c.minorSymptoms && <p><strong>Minor Symptoms:</strong> {c.minorSymptoms}</p>}
+                  {c.majorDiseases && <p className="text-red-700 font-semibold"><strong>Major Diseases / Chronic Problems:</strong> {c.majorDiseases}</p>}
+                  {c.pastMedicalHistory && <p><strong>Past Medical History:</strong> {c.pastMedicalHistory}</p>}
+                </div>
+
                 {c.prescribedMedications && c.prescribedMedications.length > 0 && (
-                  <div className="text-xs">
+                  <div className="text-xs pt-1 border-t border-slate-200/60">
                     <strong className="text-slate-700">Prescribed Medications:</strong>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {c.prescribedMedications.map((m: any, i: number) => (
@@ -259,7 +307,7 @@ export const HealthRecordsVault: React.FC = () => {
       {/* Lab Reports Section */}
       {labReports.length > 0 && (
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-          <h3 className="text-base font-extrabold text-slate-900">Added Diagnostic Lab Reports</h3>
+          <h3 className="text-base font-extrabold text-slate-900">Booked & Added Diagnostic Lab Reports</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {labReports.map((report) => (
               <div key={report.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-1">
@@ -270,6 +318,19 @@ export const HealthRecordsVault: React.FC = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          title="Diagnostic Lab Blood Test Booking"
+          amount={testCost}
+          serviceType="LAB_BLOOD_TEST"
+          itemName={selectedTestName}
+          onPaymentSuccess={handleLabPaymentCompleted}
+        />
       )}
 
       {/* Edit Vitals Modal */}

@@ -5,16 +5,22 @@ import {
   Camera,
   CheckCircle2,
   Clock,
+  CreditCard,
   FileText,
+  Home,
   Loader2,
+  PackageCheck,
   Pill,
   Plus,
   ShieldAlert,
+  ShoppingBag,
   Sparkles,
   Trash2,
+  Truck,
   Upload,
 } from 'lucide-react';
-import { MedicineReminder } from '../../types';
+import { MedicineReminder, PaymentTransaction } from '../../types';
+import { PaymentModal } from '../payment/PaymentModal';
 
 export const MedicineManager: React.FC = () => {
   const [reminders, setReminders] = useState<MedicineReminder[]>([]);
@@ -29,6 +35,13 @@ export const MedicineManager: React.FC = () => {
   const [frequency, setFrequency] = useState('Once Daily');
   const [timing, setTiming] = useState('After Meals');
   const [prescribedBy, setPrescribedBy] = useState('');
+
+  // Payment & Express Home Delivery State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [orderedItemName, setOrderedItemName] = useState('');
+  const [orderTotalAmount, setOrderTotalAmount] = useState(35.00);
+  const [activeDeliveries, setActiveDeliveries] = useState<PaymentTransaction[]>([]);
+  const [deliverySuccessToast, setDeliverySuccessToast] = useState('');
 
   const toggleTaken = (id: string) => {
     setReminders((prev) =>
@@ -61,6 +74,18 @@ export const MedicineManager: React.FC = () => {
     setMedName('');
     setDosage('');
     setPrescribedBy('');
+  };
+
+  const handleInitiateHomeDelivery = (item: string, cost: number) => {
+    setOrderedItemName(item);
+    setOrderTotalAmount(cost);
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentCompleted = (txn: PaymentTransaction) => {
+    setActiveDeliveries((prev) => [txn, ...prev]);
+    setDeliverySuccessToast(`Medicine order placed! Express Delivery dispatched to: ${txn.deliveryAddress || 'Your Registered Home Address'}.`);
+    setTimeout(() => setDeliverySuccessToast(''), 8000);
   };
 
   const handleRunOCR = async (text?: string, base64Image?: string) => {
@@ -101,25 +126,70 @@ export const MedicineManager: React.FC = () => {
       <div className="bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 bg-rose-500/20 border border-rose-400/30 text-rose-300 px-3 py-1 rounded-full text-xs font-semibold mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-rose-400" />
-            Gemini Multimodal OCR & Drug Safety Engine
+            <Truck className="w-3.5 h-3.5 text-rose-400" />
+            Express Pharmacy Home Delivery & Online Payment Gateway
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
-            Smart Medicine Manager & Alarms
+            Smart Medicine Manager & Home Delivery Service
           </h1>
           <p className="text-slate-300 text-xs sm:text-sm">
-            Scan physical prescription slips or pill labels with AI vision. Automatically schedule dosage alarms and cross-check severe drug interactions.
+            Schedule dosage alarms, scan physical prescriptions, and order doorstep medicine delivery with live courier tracking & UPI/Card payment.
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddMedModal(true)}
-          className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold rounded-xl flex items-center gap-2 shadow-lg shrink-0 cursor-pointer transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          + Add New Medicine
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => handleInitiateHomeDelivery(reminders.length > 0 ? `Full Prescription Pack (${reminders.length} Meds)` : 'Monthly Chronic Care Medicine Pack', 45.00)}
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-xl flex items-center gap-2 shadow-lg cursor-pointer transition-all"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            Order Pharmacy Home Delivery
+          </button>
+
+          <button
+            onClick={() => setShowAddMedModal(true)}
+            className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold rounded-xl flex items-center gap-2 shadow-lg cursor-pointer transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            + Add Medicine
+          </button>
+        </div>
       </div>
+
+      {/* Order Toast */}
+      {deliverySuccessToast && (
+        <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-3 text-xs text-emerald-900 animate-in fade-in">
+          <Truck className="w-6 h-6 text-emerald-600 shrink-0 animate-bounce" />
+          <div>
+            <span className="font-bold block">Pharmacy Delivery Rider Assigned!</span>
+            {deliverySuccessToast}
+          </div>
+        </div>
+      )}
+
+      {/* Active Express Deliveries List */}
+      {activeDeliveries.length > 0 && (
+        <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-3">
+          <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+            <Truck className="w-4 h-4 text-emerald-600" />
+            Active Doorstep Delivery Orders ({activeDeliveries.length})
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {activeDeliveries.map((order) => (
+              <div key={order.id} className="p-3 bg-emerald-50/60 border border-emerald-200 rounded-2xl text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-emerald-950">{order.id}</span>
+                  <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-[10px] font-bold">
+                    {order.deliveryStatus}
+                  </span>
+                </div>
+                <p className="text-slate-700">Destination: <strong>{order.deliveryAddress}</strong></p>
+                <p className="text-slate-500 text-[10px]">Payment Method: {order.paymentMethod} • Total Paid: ${order.amount.toFixed(2)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Medicine Schedule & Alarms Panel */}
@@ -139,7 +209,7 @@ export const MedicineManager: React.FC = () => {
               <Pill className="w-8 h-8 text-slate-400 mx-auto" />
               <span className="text-xs font-bold text-slate-700 block">No Active Medicine Reminders</span>
               <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
-                Click "+ Add New Medicine" above or upload a prescription slip to automatically populate your daily schedule.
+                Click "+ Add Medicine" or order doorstep pharmacy delivery.
               </p>
             </div>
           ) : (
@@ -181,10 +251,14 @@ export const MedicineManager: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono font-bold bg-slate-100 px-2.5 py-1 rounded-lg text-slate-700">
-                      {med.times.join(', ')}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleInitiateHomeDelivery(`${med.name} (${med.dosage}) Refill Pack`, 25.00)}
+                      className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold rounded-lg hover:bg-emerald-100 flex items-center gap-1 cursor-pointer"
+                    >
+                      <Truck className="w-3 h-3 text-emerald-600" />
+                      Home Deliver
+                    </button>
                     <button
                       onClick={() => handleDeleteReminder(med.id)}
                       className="text-slate-400 hover:text-red-600 cursor-pointer p-1"
@@ -203,7 +277,7 @@ export const MedicineManager: React.FC = () => {
           <div className="border-b border-slate-100 pb-3">
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Camera className="w-5 h-5 text-rose-600" />
-              Prescription OCR & Interaction Scanner
+              Prescription OCR & Order Scanner
             </h2>
             <p className="text-xs text-slate-500">Upload prescription image or paste doctor notes</p>
           </div>
@@ -233,18 +307,24 @@ export const MedicineManager: React.FC = () => {
               className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
             >
               {ocrLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              {ocrLoading ? 'Scanning Prescription...' : 'Analyze Prescription & Safety'}
+              {ocrLoading ? 'Scanning Prescription...' : 'Analyze Prescription & Check Interactions'}
             </button>
-
-            {ocrResult && (
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                <span className="font-bold text-slate-900 block">Scan Analysis Result:</span>
-                <pre className="text-[10px] text-slate-700 font-mono overflow-x-auto whitespace-pre-wrap">{JSON.stringify(ocrResult, null, 2)}</pre>
-              </div>
-            )}
           </div>
         </div>
       </div>
+
+      {/* Payment Modal for Express Home Delivery */}
+      {showPaymentModal && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          title="Pharmacy Home Delivery Checkout"
+          amount={orderTotalAmount}
+          serviceType="PHARMACY_HOME_DELIVERY"
+          itemName={orderedItemName}
+          onPaymentSuccess={handlePaymentCompleted}
+        />
+      )}
 
       {/* Add Medicine Modal */}
       {showAddMedModal && (
