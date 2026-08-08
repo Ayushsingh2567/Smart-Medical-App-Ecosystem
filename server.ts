@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import { PrismaClient } from "@prisma/client";
+import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -675,10 +676,68 @@ app.post("/api/consultations", async (req, res) => {
 });
 
 
+// Email Transporter (Supports custom SMTP or Ethereal / Test Transporter)
+const mailTransporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || "smtp.ethereal.email",
+  port: parseInt(process.env.SMTP_PORT || "587"),
+  auth: {
+    user: process.env.SMTP_USER || "test.biomed@ethereal.email",
+    pass: process.env.SMTP_PASS || "biomedpass123",
+  },
+});
+
+async function sendWelcomeVerificationEmail(toEmail: string, userName: string, role: string, code: string, abhaOrLicense?: string) {
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded: 16px; background-color: #ffffff;">
+      <div style="background-color: #0f172a; padding: 20px; border-radius: 12px; text-align: center;">
+        <h1 style="color: #14b8a6; margin: 0; font-size: 24px;">BioMed SmartEcosystem</h1>
+        <p style="color: #cbd5e1; font-size: 13px; margin-top: 5px;">National Health Network & ABHA Stack</p>
+      </div>
+
+      <div style="padding: 24px 0;">
+        <h2 style="color: #0f172a; font-size: 18px; margin-top: 0;">Welcome, ${userName}!</h2>
+        <p style="color: #334155; font-size: 14px; line-height: 1.5;">
+          Thank you for registering your <strong>${role.toUpperCase()}</strong> account on BioMed SmartEcosystem.
+        </p>
+
+        ${abhaOrLicense ? `<div style="background-color: #f1f5f9; padding: 12px 16px; border-radius: 8px; border-left: 4px solid #0d9488; margin: 15px 0;">
+          <strong style="color: #0f172a; font-size: 13px;">Your Health Identification ID:</strong>
+          <span style="font-family: monospace; font-size: 14px; font-weight: bold; color: #0f766e; display: block; margin-top: 4px;">${abhaOrLicense}</span>
+        </div>` : ''}
+
+        <div style="background-color: #ccfbf1; border: 1px border #5eead4; padding: 20px; border-radius: 12px; text-align: center; margin: 20px 0;">
+          <span style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #115e59; font-weight: bold; display: block;">Your 6-Digit Email Verification Code:</span>
+          <span style="font-size: 32px; font-weight: 900; letter-spacing: 6px; color: #0f766e; display: block; margin-top: 8px; font-family: monospace;">${code}</span>
+        </div>
+
+        <p style="color: #64748b; font-size: 12px;">
+          Enter this verification code in the app to complete your email authentication.
+        </p>
+      </div>
+
+      <div style="border-top: 1px solid #e2e8f0; padding-top: 15px; text-align: center; font-size: 11px; color: #94a3b8;">
+        © 2026 BioMed SmartEcosystem • Ayushman Bharat & PostgreSQL Stack
+      </div>
+    </div>
+  `;
+
+  try {
+    const info = await mailTransporter.sendMail({
+      from: '"BioMed SmartEcosystem Auth" <no-reply@biomedhealth.org>',
+      to: toEmail,
+      subject: `[${code}] Verify your ${role} email on BioMed SmartEcosystem`,
+      html: htmlContent,
+    });
+    console.log(`✉️ Welcome email dispatched to ${toEmail}. Message ID: ${info.messageId}`);
+  } catch (err) {
+    console.warn(`✉️ Email transport log (Simulated SMTP): Verification Code for ${toEmail} is [ ${code} ]`);
+  }
+}
+
 // Authentication API Routes (Multi-Role Patient, Doctor, Hospital Admin, Ambulance, Lab, Pharmacy, Super Admin)
 
 app.post("/api/auth/login", async (req, res) => {
-  const { identifier, password, role } = req.body; // identifier can be email or abhaId or licenseNo
+  const { identifier, password, role } = req.body;
   try {
     const user = await prisma.user.findFirst({
       where: {
@@ -717,6 +776,7 @@ app.post("/api/auth/login", async (req, res) => {
         licenseNo: user.licenseNo,
         hospitalId: user.hospitalId,
         phone: user.phone,
+        isEmailVerified: user.isEmailVerified,
       },
       token: "demo-jwt-session-token-" + Date.now(),
     });
@@ -734,29 +794,47 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(400).json({ error: "User with this email already exists" });
     }
 
+    // Generate 6-digit random email verification code
+    const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
+    const generatedAbha = abhaId || (role === "patient" ? "ABHA-" + Math.floor(1000 + Math.random() * 9000) + "-8812" : null);
+    const generatedLicense = licenseNo || (role === "doctor" ? "MED-LIC-" + Math.floor(10000 + Math.random() * 90000) : null);
+
     const user = await prisma.user.create({
       data: {
         email,
         passwordHash: password,
         name,
         role: role || "patient",
-        abhaId: abhaId || (role === "patient" ? "ABHA-" + Math.floor(1000 + Math.random() * 9000) + "-8812" : null),
-        licenseNo: licenseNo || (role === "doctor" ? "MED-LIC-" + Math.floor(10000 + Math.random() * 90000) : null),
+        abhaId: generatedAbha,
+        licenseNo: generatedLicense,
         hospitalId: hospitalId || "hosp-1",
         phone,
+        isEmailVerified: false,
+        verificationCode,
       },
     });
+
+    // Send Welcome Verification Email
+    await sendWelcomeVerificationEmail(
+      email,
+      name,
+      role || "patient",
+      verificationCode,
+      generatedAbha || generatedLicense || undefined
+    );
 
     await prisma.auditLog.create({
       data: {
         actor: user.name,
-        action: "USER_REGISTERED",
-        details: `New ${user.role} registered: ${user.email}`,
+        action: "USER_REGISTERED_EMAIL_DISPATCHED",
+        details: `Registered ${user.role}: ${user.email} (Verification code sent)`,
       },
     });
 
     return res.json({
       success: true,
+      requiresVerification: true,
+      verificationCodeSent: verificationCode, // Returned for UI testing display
       user: {
         id: user.id,
         email: user.email,
@@ -766,6 +844,7 @@ app.post("/api/auth/register", async (req, res) => {
         licenseNo: user.licenseNo,
         hospitalId: user.hospitalId,
         phone: user.phone,
+        isEmailVerified: user.isEmailVerified,
       },
       token: "demo-jwt-session-token-" + Date.now(),
     });
@@ -774,6 +853,88 @@ app.post("/api/auth/register", async (req, res) => {
     res.status(500).json({ error: "Registration failed", details: err.message });
   }
 });
+
+app.post("/api/auth/verify-email", async (req, res) => {
+  const { email, code } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "User account not found" });
+    }
+
+    if (user.verificationCode !== String(code)) {
+      return res.status(400).json({ error: "Invalid verification code. Please check your email." });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { email },
+      data: {
+        isEmailVerified: true,
+        verificationCode: null,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        actor: updatedUser.name,
+        action: "EMAIL_VERIFICATION_SUCCESS",
+        details: `Verified email address: ${email}`,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: "Email verified successfully!",
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        abhaId: updatedUser.abhaId,
+        licenseNo: updatedUser.licenseNo,
+        hospitalId: updatedUser.hospitalId,
+        phone: updatedUser.phone,
+        isEmailVerified: true,
+      },
+    });
+  } catch (err: any) {
+    console.error("Verify email error:", err);
+    res.status(500).json({ error: "Email verification failed", details: err.message });
+  }
+});
+
+app.post("/api/auth/resend-code", async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "User account not found" });
+    }
+
+    const newCode = String(Math.floor(100000 + Math.random() * 900000));
+    await prisma.user.update({
+      where: { email },
+      data: { verificationCode: newCode },
+    });
+
+    await sendWelcomeVerificationEmail(
+      email,
+      user.name,
+      user.role,
+      newCode,
+      user.abhaId || user.licenseNo || undefined
+    );
+
+    return res.json({
+      success: true,
+      message: `New 6-digit code sent to ${email}`,
+      verificationCodeSent: newCode,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to resend verification code" });
+  }
+});
+
 
 app.get("/api/auth/demo-accounts", async (_req, res) => {
   try {
