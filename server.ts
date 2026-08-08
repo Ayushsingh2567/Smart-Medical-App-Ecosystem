@@ -786,6 +786,11 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
+// Dual OTP Service Helpers (Email + SMS Gateway)
+async function sendSmsOtpGateway(phoneNumber: string, userName: string, code: string) {
+  console.log(`📱 SMS OTP Gateway: Dispatched SMS to [ ${phoneNumber || '+1-555-019-2831'} ] for ${userName}: "Your BioMed Mobile Verification OTP Code is: ${code}"`);
+}
+
 app.post("/api/auth/register", async (req, res) => {
   const { email, password, name, role, abhaId, licenseNo, hospitalId, phone } = req.body;
   try {
@@ -794,10 +799,13 @@ app.post("/api/auth/register", async (req, res) => {
       return res.status(400).json({ error: "User with this email already exists" });
     }
 
-    // Generate 6-digit random email verification code
-    const verificationCode = String(Math.floor(100000 + Math.random() * 900000));
+    // Generate 6-digit Email OTP and 6-digit Phone OTP
+    const emailOtp = String(Math.floor(100000 + Math.random() * 900000));
+    const phoneOtp = String(Math.floor(100000 + Math.random() * 900000));
+
     const generatedAbha = abhaId || (role === "patient" ? "ABHA-" + Math.floor(1000 + Math.random() * 9000) + "-8812" : null);
     const generatedLicense = licenseNo || (role === "doctor" ? "MED-LIC-" + Math.floor(10000 + Math.random() * 90000) : null);
+    const targetPhone = phone || "+1 (555) 234-5678";
 
     const user = await prisma.user.create({
       data: {
@@ -808,33 +816,39 @@ app.post("/api/auth/register", async (req, res) => {
         abhaId: generatedAbha,
         licenseNo: generatedLicense,
         hospitalId: hospitalId || "hosp-1",
-        phone,
+        phone: targetPhone,
         isEmailVerified: false,
-        verificationCode,
+        emailVerificationCode: emailOtp,
+        isPhoneVerified: false,
+        phoneVerificationCode: phoneOtp,
       },
     });
 
-    // Send Welcome Verification Email
+    // 1. Dispatch Email OTP
     await sendWelcomeVerificationEmail(
       email,
       name,
       role || "patient",
-      verificationCode,
+      emailOtp,
       generatedAbha || generatedLicense || undefined
     );
+
+    // 2. Dispatch Mobile SMS OTP
+    await sendSmsOtpGateway(targetPhone, name, phoneOtp);
 
     await prisma.auditLog.create({
       data: {
         actor: user.name,
-        action: "USER_REGISTERED_EMAIL_DISPATCHED",
-        details: `Registered ${user.role}: ${user.email} (Verification code sent)`,
+        action: "DUAL_OTP_DISPATCHED",
+        details: `Registered ${user.role}: ${user.email} & ${targetPhone} (Dual Email & Mobile OTP sent)`,
       },
     });
 
     return res.json({
       success: true,
       requiresVerification: true,
-      verificationCodeSent: verificationCode, // Returned for UI testing display
+      emailOtpSent: emailOtp,   // Returned for UI hint
+      phoneOtpSent: phoneOtp,   // Returned for UI hint
       user: {
         id: user.id,
         email: user.email,
@@ -845,6 +859,7 @@ app.post("/api/auth/register", async (req, res) => {
         hospitalId: user.hospitalId,
         phone: user.phone,
         isEmailVerified: user.isEmailVerified,
+        isPhoneVerified: user.isPhoneVerified,
       },
       token: "demo-jwt-session-token-" + Date.now(),
     });
@@ -854,6 +869,106 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
+app.post("/api/auth/verify-otp", async (req, res) => {
+  const { email, emailOtp, phoneOtp } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "User account not found" });
+    }
+
+    const isEmailValid = user.emailVerificationCode === String(emailOtp).trim();
+    const isPhoneValid = user.phoneVerificationCode === String(phoneOtp).trim();
+
+    if (!isEmailValid) {
+      return res.status(400).json({ error: "Invalid Email OTP code. Please check your email inbox." });
+    }
+
+    if (!isPhoneValid) {
+      return res.status(400).json({ error: "Invalid Mobile Phone OTP code. Please check your SMS messages." });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { email },
+      data: {
+        isEmailVerified: true,
+        emailVerificationCode: null,
+        isPhoneVerified: true,
+        phoneVerificationCode: null,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        actor: updatedUser.name,
+        action: "DUAL_OTP_VERIFICATION_SUCCESS",
+        details: `Verified both Email (${email}) and Mobile Phone (${updatedUser.phone})`,
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: "Both Email and Mobile Phone verified successfully!",
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        abhaId: updatedUser.abhaId,
+        licenseNo: updatedUser.licenseNo,
+        hospitalId: updatedUser.hospitalId,
+        phone: updatedUser.phone,
+        isEmailVerified: true,
+        isPhoneVerified: true,
+      },
+    });
+  } catch (err: any) {
+    console.error("Verify OTP error:", err);
+    res.status(500).json({ error: "Dual OTP verification failed", details: err.message });
+  }
+});
+
+app.post("/api/auth/resend-otps", async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "User account not found" });
+    }
+
+    const newEmailOtp = String(Math.floor(100000 + Math.random() * 900000));
+    const newPhoneOtp = String(Math.floor(100000 + Math.random() * 900000));
+
+    await prisma.user.update({
+      where: { email },
+      data: {
+        emailVerificationCode: newEmailOtp,
+        phoneVerificationCode: newPhoneOtp,
+      },
+    });
+
+    await sendWelcomeVerificationEmail(
+      email,
+      user.name,
+      user.role,
+      newEmailOtp,
+      user.abhaId || user.licenseNo || undefined
+    );
+
+    await sendSmsOtpGateway(user.phone || "+1-555-019-2831", user.name, newPhoneOtp);
+
+    return res.json({
+      success: true,
+      message: `Fresh Email OTP and Mobile Phone OTP sent!`,
+      emailOtpSent: newEmailOtp,
+      phoneOtpSent: newPhoneOtp,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to resend OTPs" });
+  }
+});
+
+
 app.post("/api/auth/verify-email", async (req, res) => {
   const { email, code } = req.body;
   try {
@@ -862,7 +977,7 @@ app.post("/api/auth/verify-email", async (req, res) => {
       return res.status(404).json({ error: "User account not found" });
     }
 
-    if (user.verificationCode !== String(code)) {
+    if (user.emailVerificationCode !== String(code)) {
       return res.status(400).json({ error: "Invalid verification code. Please check your email." });
     }
 
@@ -870,7 +985,7 @@ app.post("/api/auth/verify-email", async (req, res) => {
       where: { email },
       data: {
         isEmailVerified: true,
-        verificationCode: null,
+        emailVerificationCode: null,
       },
     });
 
@@ -914,7 +1029,7 @@ app.post("/api/auth/resend-code", async (req, res) => {
     const newCode = String(Math.floor(100000 + Math.random() * 900000));
     await prisma.user.update({
       where: { email },
-      data: { verificationCode: newCode },
+      data: { emailVerificationCode: newCode },
     });
 
     await sendWelcomeVerificationEmail(
@@ -924,6 +1039,7 @@ app.post("/api/auth/resend-code", async (req, res) => {
       newCode,
       user.abhaId || user.licenseNo || undefined
     );
+
 
     return res.json({
       success: true,

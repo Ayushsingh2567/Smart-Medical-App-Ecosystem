@@ -96,19 +96,22 @@ model Consultation {
 }
 
 model User {
-  id               String   @id @default(uuid())
-  email            String   @unique
-  passwordHash     String
-  name             String
-  role             String   // 'patient' | 'doctor' | 'hospital_admin' | 'ambulance_driver' | 'lab_staff' | 'pharmacy_staff' | 'super_admin'
-  abhaId           String?
-  licenseNo        String?
-  hospitalId       String?
-  phone            String?
-  isEmailVerified  Boolean  @default(false)
-  verificationCode String?
-  createdAt        DateTime @default(now())
+  id                    String   @id @default(uuid())
+  email                 String   @unique
+  passwordHash          String
+  name                  String
+  role                  String   // 'patient' | 'doctor' | 'hospital_admin' | 'ambulance_driver' | 'lab_staff' | 'pharmacy_staff' | 'super_admin'
+  abhaId                String?
+  licenseNo             String?
+  hospitalId            String?
+  phone                 String?
+  isEmailVerified       Boolean  @default(false)
+  emailVerificationCode String?
+  isPhoneVerified       Boolean  @default(false)
+  phoneVerificationCode String?
+  createdAt             DateTime @default(now())
 }
+
 
 
 

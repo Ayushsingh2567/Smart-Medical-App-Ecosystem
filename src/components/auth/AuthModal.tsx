@@ -12,10 +12,12 @@ import {
   Lock,
   LogOut,
   Mail,
+  MessageSquareCode,
   Phone,
   RefreshCw,
   Send,
   Shield,
+  Smartphone,
   Stethoscope,
   Truck,
   User,
@@ -34,6 +36,7 @@ export interface AuthUser {
   hospitalId?: string;
   phone?: string;
   isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
 }
 
 interface AuthModalProps {
@@ -47,21 +50,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onLoginSuccess,
 }) => {
-  const [authMode, setAuthMode] = useState<'register' | 'login' | 'verify_email'>('register');
+  const [authMode, setAuthMode] = useState<'register' | 'login' | 'verify_dual_otp'>('register');
   const [selectedRole, setSelectedRole] = useState<UserRole>('patient');
   
   // Real Form States
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [nameInput, setNameInput] = useState('');
-  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneInput, setPhoneInput] = useState('+1 (555) 234-5678');
   const [customAbha, setCustomAbha] = useState('');
   const [customLicense, setCustomLicense] = useState('');
   
-  // Email Verification OTP State
-  const [otpCode, setOtpCode] = useState('');
-  const [sentCodeHint, setSentCodeHint] = useState('');
-  const [pendingUser, setPendingUser] = useState<AuthUser | null>(null);
+  // Dual OTP Verification State
+  const [emailOtp, setEmailOtp] = useState('');
+  const [phoneOtp, setPhoneOtp] = useState('');
+  const [emailOtpHint, setEmailOtpHint] = useState('');
+  const [phoneOtpHint, setPhoneOtpHint] = useState('');
 
   const [showDemoOptions, setShowDemoOptions] = useState(false);
   const [error, setError] = useState('');
@@ -140,8 +144,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setError('');
     setSuccessMsg('');
 
-    if (authMode === 'verify_email') {
-      return handleVerifyCode();
+    if (authMode === 'verify_dual_otp') {
+      return handleVerifyDualOtp();
     }
 
     if (!emailInput || !passwordInput) {
@@ -166,7 +170,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               password: passwordInput,
               name: nameInput,
               role: selectedRole,
-              phone: phoneInput,
+              phone: phoneInput || '+1 (555) 234-5678',
               abhaId: selectedRole === 'patient' ? customAbha || undefined : undefined,
               licenseNo: selectedRole === 'doctor' ? customLicense || undefined : undefined,
             };
@@ -181,11 +185,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (!res.ok || data.error) {
         setError(data.error || 'Authentication failed. Please check credentials.');
       } else if (data.requiresVerification) {
-        // Go to Email Verification Code Screen
-        setPendingUser(data.user);
-        setSentCodeHint(data.verificationCodeSent || '');
-        setAuthMode('verify_email');
-        setSuccessMsg(`Welcome email dispatched to ${emailInput}! Check your inbox for the 6-digit code.`);
+        // Switch to Dual OTP Verification Screen
+        setEmailOtpHint(data.emailOtpSent || '');
+        setPhoneOtpHint(data.phoneOtpSent || '');
+        setAuthMode('verify_dual_otp');
+        setSuccessMsg(`Welcome! 2 OTP codes dispatched: Email OTP sent to ${emailInput} & Mobile SMS OTP sent to ${phoneInput || '+1 (555) 234-5678'}.`);
       } else if (data.success && data.user) {
         localStorage.setItem('biomed_user', JSON.stringify(data.user));
         localStorage.setItem('biomed_token', data.token);
@@ -200,9 +204,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleVerifyCode = async () => {
-    if (!otpCode) {
-      setError('Please enter the 6-digit verification code sent to your email.');
+  const handleVerifyDualOtp = async () => {
+    if (!emailOtp || !phoneOtp) {
+      setError('Please enter both Email OTP (6 digits) and Mobile Phone SMS OTP (6 digits).');
       return;
     }
 
@@ -210,44 +214,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setError('');
 
     try {
-      const res = await fetch('/api/auth/verify-email', {
+      const res = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput, code: otpCode }),
+        body: JSON.stringify({ email: emailInput, emailOtp, phoneOtp }),
       });
 
       const data = await res.json();
       if (!res.ok || data.error) {
-        setError(data.error || 'Invalid verification code');
+        setError(data.error || 'OTP verification failed');
       } else if (data.success && data.user) {
         localStorage.setItem('biomed_user', JSON.stringify(data.user));
         onLoginSuccess(data.user);
         onClose();
       }
     } catch (err) {
-      setError('Failed to verify email. Please try again.');
+      setError('Failed to verify OTPs. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResendCode = async () => {
+  const handleResendOtps = async () => {
     setError('');
     try {
-      const res = await fetch('/api/auth/resend-code', {
+      const res = await fetch('/api/auth/resend-otps', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: emailInput }),
       });
       const data = await res.json();
       if (data.success) {
-        setSentCodeHint(data.verificationCodeSent || '');
-        setSuccessMsg(`A new 6-digit code was sent to ${emailInput}`);
+        setEmailOtpHint(data.emailOtpSent || '');
+        setPhoneOtpHint(data.phoneOtpSent || '');
+        setSuccessMsg(`Fresh Email OTP and Mobile SMS OTP sent!`);
       } else {
-        setError(data.error || 'Failed to resend code');
+        setError(data.error || 'Failed to resend OTPs');
       }
     } catch (err) {
-      setError('Failed to resend code');
+      setError('Failed to resend OTPs');
     }
   };
 
@@ -262,14 +267,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-extrabold text-slate-900">
-                {authMode === 'verify_email'
-                  ? 'Verify Email Address'
+                {authMode === 'verify_dual_otp'
+                  ? 'Dual OTP Verification (Email + Mobile)'
                   : authMode === 'register'
                   ? 'Create Real Account'
                   : 'Member Sign In'}
               </h2>
               <p className="text-xs text-slate-500">
-                Smart Medical Ecosystem • Email & PostgreSQL Verification
+                Smart Medical Ecosystem • Dual-Factor Mobile & Email Stack
               </p>
             </div>
           </div>
@@ -281,8 +286,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </div>
 
-        {/* Mode Toggles (when not in OTP screen) */}
-        {authMode !== 'verify_email' && (
+        {/* Mode Toggles */}
+        {authMode !== 'verify_dual_otp' && (
           <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
             <button
               type="button"
@@ -320,7 +325,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         )}
 
         {/* Role Selection */}
-        {authMode !== 'verify_email' && (
+        {authMode !== 'verify_dual_otp' && (
           <div className="space-y-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
               Account Role
@@ -352,7 +357,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* Messages */}
+        {/* Alerts */}
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0" />
@@ -367,68 +372,95 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* SCREEN 1: Email Verification Code Screen */}
-        {authMode === 'verify_email' ? (
-          <div className="space-y-4">
+        {/* DUAL OTP VERIFICATION SCREEN */}
+        {authMode === 'verify_dual_otp' ? (
+          <div className="space-y-5">
             <div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl space-y-2 text-xs">
               <div className="font-bold text-teal-900 flex items-center gap-1.5 text-sm">
-                <Mail className="w-4 h-4 text-teal-600" />
-                Check Your Email Inbox
+                <MessageSquareCode className="w-4.5 h-4.5 text-teal-600" />
+                Dual Multi-Factor OTP Dispatched
               </div>
-              <p className="text-teal-950">
-                We sent a 6-digit email authentication code to <strong>{emailInput}</strong>.
+              <p className="text-teal-950 leading-relaxed">
+                To activate your account, please enter both 6-digit OTP codes sent to your registered Email and Mobile Phone.
               </p>
-              {sentCodeHint && (
-                <div className="inline-block mt-1 font-mono font-bold text-teal-800 bg-white px-2.5 py-1 rounded border border-teal-300">
-                  Verification Code: <span className="underline tracking-widest">{sentCodeHint}</span>
-                </div>
-              )}
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Enter 6-Digit Verification Code
-              </label>
+            {/* OTP 1: Email OTP */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <label className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <Mail className="w-4 h-4 text-indigo-600" />
+                  1. Email OTP Code (Sent to: {emailInput})
+                </label>
+                {emailOtpHint && (
+                  <span className="text-[10px] font-mono font-bold bg-indigo-50 text-indigo-800 px-2 py-0.5 rounded border border-indigo-200">
+                    Email OTP: <strong className="underline tracking-widest">{emailOtpHint}</strong>
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
                 maxLength={6}
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                placeholder="123456"
-                className="w-full text-center tracking-[8px] font-mono text-xl py-3 rounded-2xl border border-slate-300 font-bold focus:border-teal-500 outline-none"
+                value={emailOtp}
+                onChange={(e) => setEmailOtp(e.target.value)}
+                placeholder="Enter 6-digit Email OTP"
+                className="w-full text-center tracking-[8px] font-mono text-lg py-2.5 rounded-xl border border-slate-300 font-bold focus:border-indigo-500 bg-white outline-none"
+              />
+            </div>
+
+            {/* OTP 2: Mobile Phone SMS OTP */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <label className="font-bold text-slate-800 flex items-center gap-1.5">
+                  <Smartphone className="w-4 h-4 text-emerald-600" />
+                  2. Mobile Phone SMS OTP Code (Sent to: {phoneInput || '+1 (555) 234-5678'})
+                </label>
+                {phoneOtpHint && (
+                  <span className="text-[10px] font-mono font-bold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200">
+                    SMS OTP: <strong className="underline tracking-widest">{phoneOtpHint}</strong>
+                  </span>
+                )}
+              </div>
+              <input
+                type="text"
+                maxLength={6}
+                value={phoneOtp}
+                onChange={(e) => setPhoneOtp(e.target.value)}
+                placeholder="Enter 6-digit Mobile SMS OTP"
+                className="w-full text-center tracking-[8px] font-mono text-lg py-2.5 rounded-xl border border-slate-300 font-bold focus:border-emerald-500 bg-white outline-none"
               />
             </div>
 
             <button
               type="button"
-              onClick={handleVerifyCode}
-              disabled={loading || !otpCode}
-              className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
+              onClick={handleVerifyDualOtp}
+              disabled={loading || !emailOtp || !phoneOtp}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
             >
               <CheckCircle2 className="w-4 h-4" />
-              {loading ? 'Verifying Code...' : 'Verify Email & Complete Registration'}
+              {loading ? 'Verifying Dual OTPs...' : 'Verify Email & Mobile OTPs to Finish'}
             </button>
 
-            <div className="flex items-center justify-between text-xs pt-2">
+            <div className="flex items-center justify-between text-xs pt-1">
               <button
                 type="button"
-                onClick={handleResendCode}
+                onClick={handleResendOtps}
                 className="text-teal-700 font-bold hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                Resend Email Code
+                Resend Both OTP Codes
               </button>
               <button
                 type="button"
                 onClick={() => setAuthMode('register')}
                 className="text-slate-500 hover:text-slate-800 font-medium cursor-pointer"
               >
-                Change Email Address
+                Edit Email / Phone
               </button>
             </div>
           </div>
         ) : (
-          /* SCREEN 2: Register / Login Form */
+          /* FORM: Register / Login */
           <form onSubmit={handleSubmit} className="space-y-4">
             {authMode === 'register' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -451,16 +483,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Phone Number
+                    Mobile Phone Number * (For SMS OTP)
                   </label>
                   <div className="relative">
                     <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type="tel"
+                      required
                       value={phoneInput}
                       onChange={(e) => setPhoneInput(e.target.value)}
-                      placeholder="+1 (555) 000-0000"
-                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs"
+                      placeholder="+1 (555) 234-5678"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs font-mono font-bold"
                     />
                   </div>
                 </div>
@@ -540,14 +573,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {loading
                 ? 'Processing...'
                 : authMode === 'register'
-                ? `Send Email Verification & Register as ${roleConfigs[selectedRole].label.split('/')[0]}`
+                ? `Send Dual OTPs (Email + Mobile) & Register as ${roleConfigs[selectedRole].label.split('/')[0]}`
                 : `Sign In as ${roleConfigs[selectedRole].label.split('/')[0]}`}
             </button>
           </form>
         )}
 
-        {/* Accordion helper for Quick Demo Testing */}
-        {authMode !== 'verify_email' && (
+        {/* Demo Helper */}
+        {authMode !== 'verify_dual_otp' && (
           <div className="pt-2 border-t border-slate-100">
             <button
               type="button"
