@@ -225,6 +225,67 @@ async function main() {
     ]
   });
 
+  // 7. Seed Multi-Role Users
+  await prisma.user.deleteMany({});
+  await prisma.user.createMany({
+    data: [
+      {
+        email: "patient@smartmedical.com",
+        passwordHash: "patient123",
+        name: "Alexander Wright",
+        role: "patient",
+        abhaId: "ABHA-9102-4410-8812",
+        phone: "+1 (555) 234-5678",
+      },
+      {
+        email: "dr.sarah@citycentral.org",
+        passwordHash: "doctor123",
+        name: "Dr. Sarah Jenkins, MD",
+        role: "doctor",
+        licenseNo: "MED-CA-88192",
+        hospitalId: "hosp-1",
+        phone: "+1 (555) 309-8812",
+      },
+      {
+        email: "admin@citycentral.org",
+        passwordHash: "admin123",
+        name: "City Central ER Desk Admin",
+        role: "hospital_admin",
+        hospitalId: "hosp-1",
+        phone: "+1 (800) 555-0199",
+      },
+      {
+        email: "driver.robert@citycentral.org",
+        passwordHash: "driver123",
+        name: "Robert Miller (ALS Ambulance)",
+        role: "ambulance_driver",
+        hospitalId: "hosp-1",
+        phone: "+1 (555) 014-992",
+      },
+      {
+        email: "lab@citydiagnostics.org",
+        passwordHash: "lab123",
+        name: "Chief Diagnostics Officer",
+        role: "lab_staff",
+        phone: "+1 (555) 991-0021",
+      },
+      {
+        email: "pharmacy@medexpress.com",
+        passwordHash: "pharmacy123",
+        name: "Central Blood & Pharmacy Manager",
+        role: "pharmacy_staff",
+        phone: "+1 (555) 441-2099",
+      },
+      {
+        email: "superadmin@healthmesh.gov",
+        passwordHash: "super123",
+        name: "National Health Authority Super Admin",
+        role: "super_admin",
+        phone: "+1 (800) 999-0000",
+      },
+    ],
+  });
+
   console.log("✅ Seed completed successfully!");
 }
 

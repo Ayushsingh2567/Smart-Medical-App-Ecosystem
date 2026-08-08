@@ -95,3 +95,17 @@ model Consultation {
   createdAt             DateTime @default(now())
 }
 
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   // 'patient' | 'doctor' | 'hospital_admin' | 'ambulance_driver' | 'lab_staff' | 'pharmacy_staff' | 'super_admin'
+  abhaId       String?
+  licenseNo    String?
+  hospitalId   String?
+  phone        String?
+  createdAt    DateTime @default(now())
+}
+
+

@@ -675,7 +675,117 @@ app.post("/api/consultations", async (req, res) => {
 });
 
 
+// Authentication API Routes (Multi-Role Patient, Doctor, Hospital Admin, Ambulance, Lab, Pharmacy, Super Admin)
+
+app.post("/api/auth/login", async (req, res) => {
+  const { identifier, password, role } = req.body; // identifier can be email or abhaId or licenseNo
+  try {
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: identifier },
+          { abhaId: identifier },
+          { licenseNo: identifier },
+        ],
+      },
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: "Invalid email/ABHA ID or user not found" });
+    }
+
+    if (user.passwordHash !== password) {
+      return res.status(401).json({ error: "Invalid password" });
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        actor: user.name,
+        action: "USER_LOGIN_SUCCESS",
+        details: `User ${user.email} logged in as role ${user.role}`,
+      },
+    });
+
+    return res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        abhaId: user.abhaId,
+        licenseNo: user.licenseNo,
+        hospitalId: user.hospitalId,
+        phone: user.phone,
+      },
+      token: "demo-jwt-session-token-" + Date.now(),
+    });
+  } catch (err: any) {
+    console.error("Login error:", err);
+    res.status(500).json({ error: "Authentication failed", details: err.message });
+  }
+});
+
+app.post("/api/auth/register", async (req, res) => {
+  const { email, password, name, role, abhaId, licenseNo, hospitalId, phone } = req.body;
+  try {
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(400).json({ error: "User with this email already exists" });
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash: password,
+        name,
+        role: role || "patient",
+        abhaId: abhaId || (role === "patient" ? "ABHA-" + Math.floor(1000 + Math.random() * 9000) + "-8812" : null),
+        licenseNo: licenseNo || (role === "doctor" ? "MED-LIC-" + Math.floor(10000 + Math.random() * 90000) : null),
+        hospitalId: hospitalId || "hosp-1",
+        phone,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        actor: user.name,
+        action: "USER_REGISTERED",
+        details: `New ${user.role} registered: ${user.email}`,
+      },
+    });
+
+    return res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        abhaId: user.abhaId,
+        licenseNo: user.licenseNo,
+        hospitalId: user.hospitalId,
+        phone: user.phone,
+      },
+      token: "demo-jwt-session-token-" + Date.now(),
+    });
+  } catch (err: any) {
+    console.error("Register error:", err);
+    res.status(500).json({ error: "Registration failed", details: err.message });
+  }
+});
+
+app.get("/api/auth/demo-accounts", async (_req, res) => {
+  try {
+    const users = await prisma.user.findMany();
+    res.json(users.map(u => ({ email: u.email, role: u.role, name: u.name, abhaId: u.abhaId, licenseNo: u.licenseNo })));
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch demo accounts" });
+  }
+});
+
 // Vite Middleware Integration
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

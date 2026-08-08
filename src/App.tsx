@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { UserRole } from './types';
 import { Navbar } from './components/Navbar';
+import { AuthModal, AuthUser } from './components/auth/AuthModal';
 
 // Patient View Components
 import { PatientDashboard } from './components/patient/PatientDashboard';
@@ -31,6 +32,25 @@ export default function App() {
   const [showSOSModal, setShowSOSModal] = useState<boolean>(false);
   const [showReferralWorkflowModal, setShowReferralWorkflowModal] = useState<boolean>(false);
 
+  // Authentication State
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>({
+    id: 'user-demo-pat',
+    name: 'Alexander Wright',
+    email: 'patient@smartmedical.com',
+    role: 'patient',
+    abhaId: 'ABHA-9102-4410-8812',
+  });
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+
+  const handleLoginSuccess = (user: AuthUser) => {
+    setCurrentUser(user);
+    setCurrentRole(user.role);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+  };
+
   // Tab Navigation items for Patient view
   const patientTabs = [
     { id: 'dashboard', label: 'Overview' },
@@ -54,6 +74,9 @@ export default function App() {
         onOpenWorkflow={() => setShowReferralWorkflowModal(true)}
         activeTab={activePatientTab}
         setActiveTab={setActivePatientTab}
+        currentUser={currentUser}
+        onOpenAuthModal={() => setShowAuthModal(true)}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}
@@ -105,6 +128,13 @@ export default function App() {
       </main>
 
       {/* Modals */}
+      {showAuthModal && (
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onLoginSuccess={handleLoginSuccess}
+        />
+      )}
       {showSOSModal && <EmergencySOSModal onClose={() => setShowSOSModal(false)} />}
       {showReferralWorkflowModal && (
         <ReferralWorkflowModal
@@ -120,7 +150,7 @@ export default function App() {
             <span className="w-2.5 h-2.5 rounded-full bg-teal-500"></span>
             <span className="font-bold text-slate-800">Smart Medical Ecosystem Engine</span>
           </div>
-          <span>Powered by Gemini 3.6 • Integrated with ABHA & Regional Emergency Mesh</span>
+          <span>Powered by Gemini 3.6 • ABHA Multi-Member Authentication & PostgreSQL Stack</span>
         </div>
       </footer>
     </div>
