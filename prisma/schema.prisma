@@ -70,3 +70,28 @@ model AuditLog {
   action    String
   details   String
 }
+
+model Consultation {
+  id                    String   @id @default(uuid())
+  patientName           String
+  patientAbhaId         String
+  patientAge            Int
+  patientGender         String   @default("Male")
+  doctorName            String
+  doctorSpecialty       String
+  hospitalName          String
+  visitType             String   @default("In-Person OPD Hospital Visit")
+  visitDate             DateTime @default(now())
+  chiefComplaints       String
+  diagnosis             String
+  bloodPressure         String?
+  heartRate             Int?
+  temperature           Float?
+  spO2                  Float?
+  prescribedMedications Json?
+  recommendedTests      String[]
+  doctorNotes           String?
+  followUpDate          String?
+  createdAt             DateTime @default(now())
+}
+

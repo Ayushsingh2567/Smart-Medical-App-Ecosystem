@@ -598,6 +598,83 @@ app.get("/api/audit-logs", async (_req, res) => {
   res.json(db.auditLogs);
 });
 
+// Consultations (In-Person OPD Hospital Visits & Medical Records)
+app.get("/api/consultations", async (req, res) => {
+  const { abhaId } = req.query;
+  try {
+    const filter = abhaId ? { patientAbhaId: String(abhaId) } : {};
+    const consultations = await prisma.consultation.findMany({
+      where: filter,
+      orderBy: { visitDate: "desc" },
+    });
+    return res.json(consultations);
+  } catch (err) {
+    console.warn("Prisma consultations query failed:", err);
+    res.status(500).json({ error: "Failed to fetch consultations" });
+  }
+});
+
+app.post("/api/consultations", async (req, res) => {
+  const {
+    patientName,
+    patientAbhaId,
+    patientAge,
+    patientGender,
+    doctorName,
+    doctorSpecialty,
+    hospitalName,
+    chiefComplaints,
+    diagnosis,
+    bloodPressure,
+    heartRate,
+    temperature,
+    spO2,
+    prescribedMedications,
+    recommendedTests,
+    doctorNotes,
+    followUpDate,
+  } = req.body;
+
+  try {
+    const consultation = await prisma.consultation.create({
+      data: {
+        id: "CONSULT-2026-" + Math.floor(100 + Math.random() * 900),
+        patientName: patientName || "Alexander Wright",
+        patientAbhaId: patientAbhaId || "ABHA-9102-4410-8812",
+        patientAge: parseInt(patientAge) || 42,
+        patientGender: patientGender || "Male",
+        doctorName: doctorName || "Dr. Sarah Jenkins, MD",
+        doctorSpecialty: doctorSpecialty || "Cardiology",
+        hospitalName: hospitalName || "City Central Super Specialty Hospital",
+        chiefComplaints: chiefComplaints || "General Checkup",
+        diagnosis: diagnosis || "Observation",
+        bloodPressure,
+        heartRate: heartRate ? parseInt(heartRate) : null,
+        temperature: temperature ? parseFloat(temperature) : null,
+        spO2: spO2 ? parseFloat(spO2) : null,
+        prescribedMedications: prescribedMedications || [],
+        recommendedTests: recommendedTests || [],
+        doctorNotes,
+        followUpDate,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        actor: doctorName || "Attending Physician",
+        action: "RECORDED_IN_PERSON_CONSULTATION",
+        details: `Recorded OPD consultation for ${consultation.patientName} (${consultation.patientAbhaId}) at ${consultation.hospitalName}`,
+      },
+    });
+
+    return res.json(consultation);
+  } catch (err: any) {
+    console.error("Failed to save consultation:", err);
+    res.status(500).json({ error: "Failed to save consultation record", details: err.message });
+  }
+});
+
+
 // Vite Middleware Integration
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

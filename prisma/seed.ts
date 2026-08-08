@@ -170,6 +170,61 @@ async function main() {
     ],
   });
 
+  // 6. Seed Consultations
+  await prisma.consultation.deleteMany({});
+  await prisma.consultation.createMany({
+    data: [
+      {
+        id: "CONSULT-2026-101",
+        patientName: "Alexander Wright",
+        patientAbhaId: "ABHA-9102-4410-8812",
+        patientAge: 42,
+        patientGender: "Male",
+        doctorName: "Dr. Sarah Jenkins, MD",
+        doctorSpecialty: "Cardiology",
+        hospitalName: "City Central Super Specialty Hospital",
+        visitType: "In-Person OPD Hospital Visit",
+        chiefComplaints: "Mild chest tightness during stairs climbing, occasional breathlessness",
+        diagnosis: "Essential Hypertension (Stage 1) & Mild Exercise Angina",
+        bloodPressure: "135/88",
+        heartRate: 78,
+        temperature: 98.4,
+        spO2: 98.0,
+        prescribedMedications: [
+          { name: "Amlodipine Besylate", dosage: "5 mg", frequency: "1-0-0 (Morning)", duration: "30 Days", instructions: "After breakfast" },
+          { name: "Atorvastatin Calcium", dosage: "10 mg", frequency: "0-0-1 (Night)", duration: "30 Days", instructions: "Bedtime with water" }
+        ],
+        recommendedTests: ["2D Echocardiogram", "Treadmill Stress Test (TMT)", "Lipid Panel"],
+        doctorNotes: "Patient advised Low Sodium DASH diet, 30 min daily walking. Avoid strenuous heavy lifting until TMT results.",
+        followUpDate: "2026-08-25"
+      },
+      {
+        id: "CONSULT-2026-102",
+        patientName: "Eleanor Vance",
+        patientAbhaId: "ABHA-9102-4410-8812",
+        patientAge: 64,
+        patientGender: "Female",
+        doctorName: "Dr. Arthur Pendelton",
+        doctorSpecialty: "Cardiology",
+        hospitalName: "Community Health Center #4",
+        visitType: "Emergency OPD Triage",
+        chiefComplaints: "Acute substernal crushing pain radiating to left arm (45 mins duration)",
+        diagnosis: "Acute Anterior Wall STEMI",
+        bloodPressure: "94/60",
+        heartRate: 110,
+        temperature: 98.6,
+        spO2: 92.0,
+        prescribedMedications: [
+          { name: "Aspirin (Chewable)", dosage: "320 mg", frequency: "Stat", duration: "1 Day", instructions: "Immediate chew" },
+          { name: "Ticagrelor", dosage: "180 mg", frequency: "Stat", duration: "1 Day", instructions: "Loading dose" }
+        ],
+        recommendedTests: ["12-Lead ECG", "Troponin I Triage", "Emergency Coronary Angiogram"],
+        doctorNotes: "Critical condition. Initiated digital referral to City Central Cath Lab for primary PCI.",
+        followUpDate: "Immediate Transfer"
+      }
+    ]
+  });
+
   console.log("✅ Seed completed successfully!");
 }
 

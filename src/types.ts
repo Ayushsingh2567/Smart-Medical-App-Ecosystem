@@ -204,3 +204,33 @@ export interface RiskPredictionResult {
   dietaryAdvice: string[];
   clinicalNextSteps: string[];
 }
+
+export interface ConsultationRecord {
+  id: string;
+  patientName: string;
+  patientAbhaId: string;
+  patientAge: number;
+  patientGender?: string;
+  doctorName: string;
+  doctorSpecialty: string;
+  hospitalName: string;
+  visitType?: string;
+  visitDate: string;
+  chiefComplaints: string;
+  diagnosis: string;
+  bloodPressure?: string;
+  heartRate?: number;
+  temperature?: number;
+  spO2?: number;
+  prescribedMedications?: {
+    name: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    instructions: string;
+  }[];
+  recommendedTests?: string[];
+  doctorNotes?: string;
+  followUpDate?: string;
+}
+

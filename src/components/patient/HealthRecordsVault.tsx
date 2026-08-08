@@ -1,23 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Activity,
   AlertCircle,
+  Calendar,
   CheckCircle2,
   Download,
   FileCheck,
   FileText,
+  Pill,
   QrCode,
   ShieldCheck,
   Sparkles,
+  Stethoscope,
   Upload,
   User,
+  UserCheck,
 } from 'lucide-react';
 import { initialPatientProfile, sampleLabReports } from '../../data/mockData';
+import { ConsultationRecord } from '../../types';
 
 export const HealthRecordsVault: React.FC = () => {
   const [patient] = useState(initialPatientProfile);
   const [labReports] = useState(sampleLabReports);
   const [selectedReport, setSelectedReport] = useState(labReports[0]);
+  const [consultations, setConsultations] = useState<ConsultationRecord[]>([]);
+  const [loadingConsultations, setLoadingConsultations] = useState(true);
+
+  useEffect(() => {
+    fetchPatientConsultations();
+  }, []);
+
+  const fetchPatientConsultations = async () => {
+    try {
+      const res = await fetch(`/api/consultations?abhaId=${patient.abhaId}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setConsultations(data);
+      }
+    } catch (err) {
+      console.error('Error fetching patient consultations:', err);
+    } finally {
+      setLoadingConsultations(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -114,6 +139,104 @@ export const HealthRecordsVault: React.FC = () => {
               Upload Medical Report / Scan (PDF/Image)
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Hospital Consultations History Section */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <Stethoscope className="w-5 h-5 text-emerald-600" />
+            Hospital OPD Consultations & Medical History Timeline ({consultations.length})
+          </h2>
+          <span className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200">
+            Linked to ABHA: {patient.abhaId}
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          {loadingConsultations ? (
+            <div className="text-center py-6 text-xs text-slate-500">Loading hospital consultations from database...</div>
+          ) : consultations.length === 0 ? (
+            <div className="text-center py-8 text-xs text-slate-500">No past hospital consultations found.</div>
+          ) : (
+            consultations.map((c) => (
+              <div
+                key={c.id}
+                className="p-5 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-white transition-all space-y-3"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/60 pb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-slate-900 text-sm sm:text-base">
+                        Hospital Visit: {c.hospitalName}
+                      </span>
+                      <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                        {c.visitType || 'In-Person OPD Visit'}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-600 mt-1">
+                      Doctor: <strong className="text-slate-900">{c.doctorName}</strong> ({c.doctorSpecialty})
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span className="text-xs font-bold text-slate-700 block">
+                      Visit Date: {new Date(c.visitDate).toLocaleDateString()}
+                    </span>
+                    <span className="text-[10px] text-slate-500">Ref ID: {c.id}</span>
+                  </div>
+                </div>
+
+                {/* Vitals snapshot */}
+                {(c.bloodPressure || c.heartRate || c.spO2) && (
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="font-bold text-slate-500 text-[10px] uppercase">Recorded Vitals:</span>
+                    {c.bloodPressure && <span className="bg-white px-2 py-0.5 rounded border border-slate-200 font-bold">BP: {c.bloodPressure}</span>}
+                    {c.heartRate && <span className="bg-white px-2 py-0.5 rounded border border-slate-200 font-bold">Pulse: {c.heartRate} BPM</span>}
+                    {c.spO2 && <span className="bg-white px-2 py-0.5 rounded border border-slate-200 font-bold text-emerald-700">SpO2: {c.spO2}%</span>}
+                  </div>
+                )}
+
+                {/* Diagnosis & Complaints */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-white rounded-xl border border-slate-200">
+                    <span className="font-bold text-slate-900 block mb-0.5">Chief Complaints:</span>
+                    <p className="text-slate-700">{c.chiefComplaints}</p>
+                  </div>
+                  <div className="p-3 bg-blue-50/80 rounded-xl border border-blue-200">
+                    <span className="font-bold text-blue-900 block mb-0.5">Doctor's Diagnosis:</span>
+                    <p className="text-blue-950 font-semibold">{c.diagnosis}</p>
+                  </div>
+                </div>
+
+                {/* Prescribed Medications */}
+                {c.prescribedMedications && Array.isArray(c.prescribedMedications) && c.prescribedMedications.length > 0 && (
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs space-y-1.5">
+                    <span className="font-bold text-slate-900 flex items-center gap-1">
+                      <Pill className="w-3.5 h-3.5 text-indigo-600" />
+                      Prescribed Medications ({c.prescribedMedications.length}):
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {c.prescribedMedications.map((m: any, idx: number) => (
+                        <div key={idx} className="p-2 bg-slate-50 rounded-lg border border-slate-200 text-[11px]">
+                          <span className="font-bold text-slate-900">{m.name}</span> ({m.dosage}) — <span className="text-indigo-700 font-semibold">{m.frequency}</span>
+                          {m.instructions && <span className="block text-slate-500 text-[10px]">{m.instructions}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Doctor advice & follow up */}
+                {c.doctorNotes && (
+                  <div className="text-xs text-slate-600 bg-amber-50/60 p-2.5 rounded-xl border border-amber-200">
+                    <strong className="text-amber-900">Clinical Advice:</strong> {c.doctorNotes}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
       </div>
 
