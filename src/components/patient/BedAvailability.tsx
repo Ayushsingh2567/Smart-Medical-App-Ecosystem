@@ -6,6 +6,7 @@ import {
   Hospital as HospIcon,
   MapPin,
   PhoneCall,
+  Plus,
   Search,
   Sparkles,
   Stethoscope,
@@ -20,6 +21,16 @@ export const BedAvailability: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [bookedHospital, setBookedHospital] = useState<string | null>(null);
 
+  // Add Hospital Modal
+  const [showAddHospitalModal, setShowAddHospitalModal] = useState(false);
+  const [hospName, setHospName] = useState('');
+  const [hospAddress, setHospAddress] = useState('');
+  const [hospPhone, setHospPhone] = useState('');
+  const [icuAvailable, setIcuAvailable] = useState(10);
+  const [ventilatorAvailable, setVentilatorAvailable] = useState(5);
+  const [oxygenAvailable, setOxygenAvailable] = useState(25);
+  const [normalAvailable, setNormalAvailable] = useState(50);
+
   useEffect(() => {
     fetchHospitals();
   }, []);
@@ -28,12 +39,42 @@ export const BedAvailability: React.FC = () => {
     try {
       const res = await fetch('/api/hospitals');
       const data = await res.json();
-      setHospitals(data);
+      if (Array.isArray(data)) setHospitals(data);
     } catch (err) {
       console.error('Error fetching hospitals:', err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddHospital = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!hospName || !hospAddress) return;
+
+    const newHosp: Hospital = {
+      id: 'hosp-' + Date.now(),
+      name: hospName,
+      address: hospAddress,
+      location: { lat: 28.6139, lng: 77.209 },
+      distanceKm: 2.5,
+      contactPhone: hospPhone || '+1 (555) 000-0000',
+      emergencyNumber: hospPhone || '+1 (555) 000-0000',
+      beds: {
+        icu: { total: icuAvailable + 5, available: Number(icuAvailable) },
+        ventilator: { total: ventilatorAvailable + 3, available: Number(ventilatorAvailable) },
+        oxygen: { total: oxygenAvailable + 10, available: Number(oxygenAvailable) },
+        normal: { total: normalAvailable + 20, available: Number(normalAvailable) },
+        pediatric: { total: 10, available: 5 },
+      },
+      specialties: ['Emergency Trauma', 'Critical Care', 'General Medicine'],
+      rating: 4.8,
+    };
+
+    setHospitals((prev) => [newHosp, ...prev]);
+    setShowAddHospitalModal(false);
+    setHospName('');
+    setHospAddress('');
+    setHospPhone('');
   };
 
   const filteredHospitals = hospitals.filter((h) => {
@@ -54,7 +95,7 @@ export const BedAvailability: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 px-3 py-1 rounded-full text-xs font-semibold mb-3">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
@@ -67,6 +108,14 @@ export const BedAvailability: React.FC = () => {
             Search nearby hospitals for real-time ICU, Ventilator, Oxygen, and Normal bed vacancies. Instant pre-registration with automated ER notification.
           </p>
         </div>
+
+        <button
+          onClick={() => setShowAddHospitalModal(true)}
+          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold rounded-xl flex items-center gap-2 shadow-lg shrink-0 cursor-pointer transition-all"
+        >
+          <Plus className="w-4 h-4" />
+          + Register New Hospital / Beds
+        </button>
       </div>
 
       {/* Filter & Search Bar */}
@@ -99,133 +148,101 @@ export const BedAvailability: React.FC = () => {
 
       {/* Booking Toast Banner */}
       {bookedHospital && (
-        <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center justify-between text-xs text-emerald-900 animate-in fade-in">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-            <div>
-              <span className="font-bold block">Pre-Registration Confirmed!</span>
-              Bed reserved at <span className="underline font-bold">{bookedHospital}</span>. Emergency Admissions team has received your profile.
-            </div>
+        <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-3 text-xs text-emerald-900">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          <div>
+            <span className="font-bold block">Pre-Registration Sent to {bookedHospital}!</span>
+            The hospital ER triage team has been alerted. Your emergency patient pass is active.
           </div>
-          <button
-            onClick={() => setBookedHospital(null)}
-            className="px-3 py-1 bg-emerald-700 text-white font-bold rounded-lg cursor-pointer"
-          >
-            Dismiss
-          </button>
         </div>
       )}
 
-      {/* Hospital Cards Grid */}
+      {/* Hospital List */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredHospitals.map((hosp) => (
-          <div
-            key={hosp.id}
-            className="bg-white rounded-2xl border border-slate-200 shadow-xs hover:shadow-lg transition-all flex flex-col justify-between overflow-hidden"
-          >
-            {/* Hospital Top Info */}
-            <div className="p-5 space-y-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                    <HospIcon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 text-sm leading-tight">
-                      {hosp.name}
-                    </h3>
-                    <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{hosp.distanceKm} km away</span>
-                    </div>
-                  </div>
-                </div>
-                <span className="bg-amber-50 text-amber-800 text-[10px] font-extrabold px-2 py-1 rounded border border-amber-200">
+          <div key={hosp.id} className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4 flex flex-col justify-between hover:shadow-md transition-all">
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-extrabold text-base text-slate-900">{hosp.name}</h3>
+                <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
                   ★ {hosp.rating}
                 </span>
               </div>
+              <p className="text-xs text-slate-500 flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-slate-400" /> {hosp.address}
+              </p>
+            </div>
 
-              {/* Specialties */}
-              <div className="flex flex-wrap gap-1">
-                {hosp.specialties.map((s, i) => (
-                  <span
-                    key={i}
-                    className="bg-slate-100 text-slate-700 text-[10px] font-medium px-2 py-0.5 rounded-md"
-                  >
-                    {s}
-                  </span>
-                ))}
+            <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-slate-100">
+              <div className="p-2.5 bg-red-50/70 border border-red-100 rounded-xl">
+                <span className="text-[10px] uppercase font-bold text-red-700 block">ICU Beds</span>
+                <span className="text-sm font-black text-red-950">{hosp.beds.icu.available} / {hosp.beds.icu.total}</span>
               </div>
-
-              {/* Bed Count Grid */}
-              <div className="grid grid-cols-2 gap-2 pt-2 text-xs">
-                {/* ICU */}
-                <div className="p-2.5 rounded-xl bg-red-50/80 border border-red-200">
-                  <div className="flex items-center justify-between text-[10px] text-red-700 font-bold uppercase">
-                    <span>ICU Beds</span>
-                    <Wind className="w-3 h-3" />
-                  </div>
-                  <div className="text-lg font-black text-red-900 mt-0.5">
-                    {hosp.beds.icu.available}{' '}
-                    <span className="text-xs text-red-500 font-medium">/ {hosp.beds.icu.total}</span>
-                  </div>
-                </div>
-
-                {/* Ventilator */}
-                <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200">
-                  <div className="flex items-center justify-between text-[10px] text-amber-700 font-bold uppercase">
-                    <span>Ventilators</span>
-                  </div>
-                  <div className="text-lg font-black text-amber-900 mt-0.5">
-                    {hosp.beds.ventilator.available}{' '}
-                    <span className="text-xs text-amber-500 font-medium">/ {hosp.beds.ventilator.total}</span>
-                  </div>
-                </div>
-
-                {/* Oxygen */}
-                <div className="p-2.5 rounded-xl bg-teal-50/80 border border-teal-200">
-                  <div className="flex items-center justify-between text-[10px] text-teal-700 font-bold uppercase">
-                    <span>Oxygen Beds</span>
-                  </div>
-                  <div className="text-lg font-black text-teal-900 mt-0.5">
-                    {hosp.beds.oxygen.available}{' '}
-                    <span className="text-xs text-teal-500 font-medium">/ {hosp.beds.oxygen.total}</span>
-                  </div>
-                </div>
-
-                {/* Normal */}
-                <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-200">
-                  <div className="flex items-center justify-between text-[10px] text-slate-600 font-bold uppercase">
-                    <span>Normal Beds</span>
-                  </div>
-                  <div className="text-lg font-black text-slate-800 mt-0.5">
-                    {hosp.beds.normal.available}{' '}
-                    <span className="text-xs text-slate-500 font-medium">/ {hosp.beds.normal.total}</span>
-                  </div>
-                </div>
+              <div className="p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-xl">
+                <span className="text-[10px] uppercase font-bold text-indigo-700 block">Ventilators</span>
+                <span className="text-sm font-black text-indigo-950">{hosp.beds.ventilator.available} / {hosp.beds.ventilator.total}</span>
+              </div>
+              <div className="p-2.5 bg-teal-50/70 border border-teal-100 rounded-xl">
+                <span className="text-[10px] uppercase font-bold text-teal-700 block">Oxygen Beds</span>
+                <span className="text-sm font-black text-teal-950">{hosp.beds.oxygen.available} / {hosp.beds.oxygen.total}</span>
+              </div>
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
+                <span className="text-[10px] uppercase font-bold text-slate-600 block">Normal Ward</span>
+                <span className="text-sm font-black text-slate-900">{hosp.beds.normal.available} / {hosp.beds.normal.total}</span>
               </div>
             </div>
 
-            {/* Footer Action Bar */}
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
-              <a
-                href={`tel:${hosp.contactPhone}`}
-                className="px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors"
-              >
-                <PhoneCall className="w-3.5 h-3.5 text-indigo-600" />
-                Call ER
-              </a>
-
-              <button
-                onClick={() => setBookedHospital(hosp.name)}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
-              >
-                Pre-Register Bed
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setBookedHospital(hosp.name);
+                setTimeout(() => setBookedHospital(null), 5000);
+              }}
+              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer transition-all"
+            >
+              Pre-Register Emergency Patient Bed
+            </button>
           </div>
         ))}
       </div>
+
+      {/* Add Hospital Modal */}
+      {showAddHospitalModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
+          <form onSubmit={handleAddHospital} className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-sm font-bold text-slate-900">Register New Hospital Facility</h3>
+              <button type="button" onClick={() => setShowAddHospitalModal(false)} className="text-slate-400 font-bold text-sm">✕</button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold block mb-1">Hospital Name *</label>
+                <input type="text" required value={hospName} onChange={(e) => setHospName(e.target.value)} placeholder="e.g. Metro Multispecialty Hospital" className="w-full p-2.5 border rounded-xl" />
+              </div>
+              <div>
+                <label className="font-bold block mb-1">Location Address *</label>
+                <input type="text" required value={hospAddress} onChange={(e) => setHospAddress(e.target.value)} placeholder="Full street address & city" className="w-full p-2.5 border rounded-xl" />
+              </div>
+              <div>
+                <label className="font-bold block mb-1">Emergency Phone Number</label>
+                <input type="tel" value={hospPhone} onChange={(e) => setHospPhone(e.target.value)} placeholder="+1 (555) 000-0000" className="w-full p-2.5 border rounded-xl" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold block mb-1">ICU Beds Available</label>
+                  <input type="number" value={icuAvailable} onChange={(e) => setIcuAvailable(Number(e.target.value))} className="w-full p-2.5 border rounded-xl" />
+                </div>
+                <div>
+                  <label className="font-bold block mb-1">Ventilator Beds</label>
+                  <input type="number" value={ventilatorAvailable} onChange={(e) => setVentilatorAvailable(Number(e.target.value))} className="w-full p-2.5 border rounded-xl" />
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" className="w-full py-2.5 bg-indigo-600 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer">Register Hospital</button>
+          </form>
+        </div>
+      )}
     </div>
   );
 };
