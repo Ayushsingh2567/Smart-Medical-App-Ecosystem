@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserRole } from './types';
 import { Navbar } from './components/Navbar';
 import { AuthModal, AuthUser } from './components/auth/AuthModal';
@@ -25,6 +25,7 @@ import { SuperAdminDashboard } from './components/admin/SuperAdminDashboard';
 
 // Workflow Modal
 import { ReferralWorkflowModal } from './components/ReferralWorkflowModal';
+import { UserCheck, KeyRound } from 'lucide-react';
 
 export default function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('patient');
@@ -33,22 +34,33 @@ export default function App() {
   const [showReferralWorkflowModal, setShowReferralWorkflowModal] = useState<boolean>(false);
 
   // Authentication State
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>({
-    id: 'user-demo-pat',
-    name: 'Alexander Wright',
-    email: 'patient@smartmedical.com',
-    role: 'patient',
-    abhaId: 'ABHA-9102-4410-8812',
-  });
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+
+  // Load real authenticated user session from localStorage on initial render
+  useEffect(() => {
+    const savedUser = localStorage.getItem('biomed_user');
+    if (savedUser) {
+      try {
+        const user: AuthUser = JSON.parse(savedUser);
+        setCurrentUser(user);
+        setCurrentRole(user.role);
+      } catch (err) {
+        console.error('Error parsing stored user session:', err);
+      }
+    }
+  }, []);
 
   const handleLoginSuccess = (user: AuthUser) => {
     setCurrentUser(user);
     setCurrentRole(user.role);
+    localStorage.setItem('biomed_user', JSON.stringify(user));
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    localStorage.removeItem('biomed_user');
+    localStorage.removeItem('biomed_token');
   };
 
   // Tab Navigation items for Patient view
@@ -78,6 +90,29 @@ export default function App() {
         onOpenAuthModal={() => setShowAuthModal(true)}
         onLogout={handleLogout}
       />
+
+      {/* Real User Unauthenticated Banner Prompt */}
+      {!currentUser && (
+        <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-indigo-900 text-white px-4 py-3 border-b border-teal-500/30">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 bg-teal-500/20 rounded-lg text-teal-400 font-bold">
+                <UserCheck className="w-4 h-4" />
+              </span>
+              <span>
+                <strong>Welcome to BioMed SmartEcosystem!</strong> Create your real account or sign in to save your ABHA Health Vault & OPD consultations in PostgreSQL.
+              </span>
+            </div>
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold rounded-xl shadow-md transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+            >
+              <KeyRound className="w-3.5 h-3.5" />
+              Register / Sign In Now
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -150,7 +185,7 @@ export default function App() {
             <span className="w-2.5 h-2.5 rounded-full bg-teal-500"></span>
             <span className="font-bold text-slate-800">Smart Medical Ecosystem Engine</span>
           </div>
-          <span>Powered by Gemini 3.6 • ABHA Multi-Member Authentication & PostgreSQL Stack</span>
+          <span>Powered by Gemini 3.6 • Real Member Registration & PostgreSQL Stack</span>
         </div>
       </footer>
     </div>
