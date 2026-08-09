@@ -177,7 +177,7 @@ export default function App() {
             <span className="w-2.5 h-2.5 rounded-full bg-teal-500"></span>
             <span className="font-bold text-slate-800">BioMed SmartEcosystem Engine</span>
           </div>
-          <span>Ayushman Bharat Stack • PostgreSQL Verified Multi-Role Security</span>
+          <span>Ayushman Bharat Stack • National Healthcare Network</span>
         </div>
       </footer>
     </div>

@@ -4,18 +4,11 @@ import {
   AlertTriangle,
   ArrowRight,
   Building2,
-  CheckCircle2,
   HeartPulse,
   Hospital,
   KeyRound,
-  Lock,
-  Shield,
-  ShieldCheck,
-  Sparkles,
   Stethoscope,
   Truck,
-  UserCheck,
-  UserPlus,
 } from 'lucide-react';
 import { UserRole } from '../../types';
 
@@ -87,15 +80,10 @@ export const LandingHomePage: React.FC<LandingHomePageProps> = ({
   ];
 
   return (
-    <div className="space-y-12 py-4">
+    <div className="space-y-8 py-4">
       {/* Hero Section */}
       <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 rounded-3xl p-8 sm:p-12 text-white shadow-2xl relative overflow-hidden border border-slate-800">
         <div className="relative z-10 max-w-3xl space-y-6">
-          <div className="inline-flex items-center gap-2 bg-teal-500/20 border border-teal-400/30 text-teal-300 px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wide">
-            <ShieldCheck className="w-4 h-4 text-teal-400" />
-            PostgreSQL Verified Authentication • Strict Role-Based Access Control
-          </div>
-
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight leading-tight">
             National Smart Medical <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">App Ecosystem</span>
           </h1>
@@ -161,40 +149,6 @@ export const LandingHomePage: React.FC<LandingHomePageProps> = ({
               </div>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Platform Features Grid */}
-      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
-        <div className="text-center max-w-xl mx-auto space-y-2">
-          <h2 className="text-xl font-extrabold text-slate-900">Built for Enterprise Healthcare Delivery</h2>
-          <p className="text-xs text-slate-500">Fully compliant with ABHA Health Stack, Ayushman Bharat Mesh & PostgreSQL Database</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-            <Lock className="w-5 h-5 text-emerald-600" />
-            <h4 className="font-extrabold text-slate-900">Strict Role Isolation</h4>
-            <p className="text-slate-600">Patients cannot view doctor notes or admin controls; doctors access clinical tools securely.</p>
-          </div>
-
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-            <ShieldCheck className="w-5 h-5 text-blue-600" />
-            <h4 className="font-extrabold text-slate-900">ABHA Health Vault</h4>
-            <p className="text-slate-600">End-to-end encrypted medical history, digital e-prescriptions, and OPD consultation logs.</p>
-          </div>
-
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-            <Hospital className="w-5 h-5 text-indigo-600" />
-            <h4 className="font-extrabold text-slate-900">Live ICU & Bed Mesh</h4>
-            <p className="text-slate-600">Real-time availability of ICU, ventilator, and oxygen beds across regional emergency hospitals.</p>
-          </div>
-
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-            <Sparkles className="w-5 h-5 text-purple-600" />
-            <h4 className="font-extrabold text-slate-900">Gemini 3.6 AI Engine</h4>
-            <p className="text-slate-600">Intelligent clinical triage, automatic prescription OCR reading, and smart hospital referral matching.</p>
-          </div>
         </div>
       </div>
     </div>
