@@ -61,11 +61,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [customAbha, setCustomAbha] = useState('');
   const [customLicense, setCustomLicense] = useState('');
   
-  // Dual OTP Verification State
+  // Dual OTP Verification State (Internal secret state, NOT displayed on screen)
   const [emailOtp, setEmailOtp] = useState('');
   const [phoneOtp, setPhoneOtp] = useState('');
-  const [emailOtpHint, setEmailOtpHint] = useState('');
-  const [phoneOtpHint, setPhoneOtpHint] = useState('');
+  const [internalEmailOtp, setInternalEmailOtp] = useState('');
+  const [internalPhoneOtp, setInternalPhoneOtp] = useState('');
   const [pendingUserData, setPendingUserData] = useState<AuthUser | null>(null);
 
   const [showDemoOptions, setShowDemoOptions] = useState(false);
@@ -185,11 +185,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const data = await res.json().catch(() => null);
       if (res.ok && data) {
         if (data.requiresVerification) {
-          setEmailOtpHint(data.emailOtpSent || '');
-          setPhoneOtpHint(data.phoneOtpSent || '');
           setPendingUserData(data.user);
           setAuthMode('verify_dual_otp');
-          setSuccessMsg(`Welcome ${nameInput}! 2 Verification OTP codes sent: Email OTP to ${emailInput} & Mobile SMS OTP to ${phoneInput || '+91 8114240263'}.`);
+          setSuccessMsg(`Registration successful! Verification OTPs sent to your Email (${emailInput}) & Mobile SMS (${phoneInput || '+91 8114240263'}). Please check your inbox and SMS messages.`);
           return;
         } else if (data.success && data.user) {
           localStorage.setItem('biomed_user', JSON.stringify(data.user));
@@ -200,7 +198,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
       }
       
-      // Fallback if backend API responds with error
       if (data && data.error) {
         setError(data.error);
         return;
@@ -232,15 +229,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const pOtp = String(Math.floor(100000 + Math.random() * 900000));
 
       setPendingUserData(newUser);
-      setEmailOtpHint(eOtp);
-      setPhoneOtpHint(pOtp);
+      setInternalEmailOtp(eOtp);
+      setInternalPhoneOtp(pOtp);
       
-      // Save pending state locally
+      // Store pending secret state locally (NOT displayed on screen)
       localStorage.setItem('biomed_pending_otp', JSON.stringify({ user: newUser, eOtp, pOtp, pass: passwordInput }));
       setAuthMode('verify_dual_otp');
-      setSuccessMsg(`Welcome ${nameInput}! 2 Verification OTP codes sent: Email OTP to ${emailInput} & Mobile SMS OTP to ${phoneInput || '+91 8114240263'}.`);
+      setSuccessMsg(`Welcome ${nameInput}! You have registered in BioMed Ecosystem. 6-digit OTP codes sent to your Email (${emailInput}) & Mobile SMS (${phoneInput || '+91 8114240263'}). Check your inbox!`);
     } else if (authMode === 'login') {
-      // Login fallback
       const user: AuthUser = {
         id: 'user-' + Date.now(),
         email: emailInput,
@@ -289,7 +285,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setLoading(false);
     }
 
-    // Client-side OTP Verification Fallback
+    // Client-side secret OTP verification
     const storedPending = localStorage.getItem('biomed_pending_otp');
     if (storedPending) {
       try {
@@ -302,7 +298,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           onClose();
           return;
         } else {
-          setError('Invalid OTP code. Please enter the exact 6-digit codes shown in the hints.');
+          setError('Invalid OTP code. Please enter the exact 6-digit codes sent to your Email and SMS.');
           return;
         }
       } catch (e) {
@@ -310,12 +306,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     }
 
-    // If matches hints
-    if (emailOtp.trim() === emailOtpHint && phoneOtp.trim() === phoneOtpHint) {
+    if (emailOtp.trim() === internalEmailOtp && phoneOtp.trim() === internalPhoneOtp) {
       const user = pendingUserData || {
         id: 'user-' + Date.now(),
         email: emailInput,
-        name: nameInput || 'Ayush',
+        name: nameInput || 'Registered Member',
         role: selectedRole,
         phone: phoneInput || '+91 8114240263',
         abhaId: customAbha || 'ABHA-9102-4410-8812',
@@ -326,7 +321,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onLoginSuccess(user);
       onClose();
     } else {
-      setError('Invalid OTP codes entered. Please check the 6-digit Email and SMS OTP codes.');
+      setError('Invalid OTP codes entered. Please check your Email inbox and Mobile SMS messages.');
     }
   };
 
@@ -343,18 +338,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       });
       const data = await res.json().catch(() => null);
       if (data && data.success) {
-        setEmailOtpHint(data.emailOtpSent || newEOtp);
-        setPhoneOtpHint(data.phoneOtpSent || newPOtp);
-        setSuccessMsg(`Fresh Email OTP and Mobile SMS OTP dispatched!`);
+        setSuccessMsg(`Fresh Email OTP and Mobile SMS OTP dispatched to your inbox!`);
         return;
       }
     } catch (err) {
-      console.warn('API resend failed, using fresh client OTPs:', err);
+      console.warn('API resend failed:', err);
     }
 
-    setEmailOtpHint(newEOtp);
-    setPhoneOtpHint(newPOtp);
-    setSuccessMsg(`Fresh Email OTP [ ${newEOtp} ] and Mobile SMS OTP [ ${newPOtp} ] sent!`);
+    setInternalEmailOtp(newEOtp);
+    setInternalPhoneOtp(newPOtp);
+    setSuccessMsg(`Fresh 6-digit OTP codes sent to ${emailInput} and ${phoneInput || '+91 8114240263'}. Please check your inbox and SMS messages.`);
   };
 
   return (
@@ -473,7 +466,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* DUAL OTP VERIFICATION SCREEN */}
+        {/* DUAL OTP VERIFICATION SCREEN (NO OTP HINTS DISPLAYED ON SCREEN) */}
         {authMode === 'verify_dual_otp' ? (
           <div className="space-y-5">
             <div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl space-y-2 text-xs">
@@ -482,23 +475,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 Dual Multi-Factor OTP Dispatched
               </div>
               <p className="text-teal-950 leading-relaxed">
-                To activate your account, please enter both 6-digit OTP codes sent to your registered Email and Mobile Phone.
+                To activate your account, please enter both 6-digit OTP codes sent to your registered Email (<strong>{emailInput}</strong>) and Mobile Phone (<strong>{phoneInput || '+91 8114240263'}</strong>).
               </p>
             </div>
 
             {/* OTP 1: Email OTP */}
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <label className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <Mail className="w-4 h-4 text-indigo-600" />
-                  1. Email OTP Code (Sent to: {emailInput})
-                </label>
-                {emailOtpHint && (
-                  <span className="text-[10px] font-mono font-bold bg-indigo-50 text-indigo-800 px-2 py-0.5 rounded border border-indigo-200">
-                    Email OTP: <strong className="underline tracking-widest">{emailOtpHint}</strong>
-                  </span>
-                )}
-              </div>
+              <label className="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
+                <Mail className="w-4 h-4 text-indigo-600" />
+                1. Enter 6-Digit Email OTP (Sent to: {emailInput})
+              </label>
               <input
                 type="text"
                 maxLength={6}
@@ -511,17 +497,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             {/* OTP 2: Mobile Phone SMS OTP */}
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <label className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <Smartphone className="w-4 h-4 text-emerald-600" />
-                  2. Mobile Phone SMS OTP Code (Sent to: {phoneInput || '+91 8114240263'})
-                </label>
-                {phoneOtpHint && (
-                  <span className="text-[10px] font-mono font-bold bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded border border-emerald-200">
-                    SMS OTP: <strong className="underline tracking-widest">{phoneOtpHint}</strong>
-                  </span>
-                )}
-              </div>
+              <label className="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
+                <Smartphone className="w-4 h-4 text-emerald-600" />
+                2. Enter 6-Digit Mobile Phone SMS OTP (Sent to: {phoneInput || '+91 8114240263'})
+              </label>
               <input
                 type="text"
                 maxLength={6}

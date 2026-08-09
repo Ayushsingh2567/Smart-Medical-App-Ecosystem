@@ -847,8 +847,6 @@ app.post("/api/auth/register", async (req, res) => {
     return res.json({
       success: true,
       requiresVerification: true,
-      emailOtpSent: emailOtp,   // Returned for UI hint
-      phoneOtpSent: phoneOtp,   // Returned for UI hint
       user: {
         id: user.id,
         email: user.email,
@@ -959,9 +957,7 @@ app.post("/api/auth/resend-otps", async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Fresh Email OTP and Mobile Phone OTP sent!`,
-      emailOtpSent: newEmailOtp,
-      phoneOtpSent: newPhoneOtp,
+      message: `Fresh 6-digit Email OTP and Mobile Phone SMS OTP dispatched to ${email}!`,
     });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to resend OTPs" });
