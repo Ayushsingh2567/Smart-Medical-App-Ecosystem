@@ -63,6 +63,34 @@ export default function App() {
     localStorage.removeItem('biomed_token');
   };
 
+  const handleInstantLogin = (role: UserRole) => {
+    const roleNames: Record<UserRole, string> = {
+      patient: 'Patient Member',
+      doctor: 'Dr. Sarah Jenkins, MD',
+      hospital_admin: 'City Central ER Admin',
+      ambulance_driver: 'Robert Miller (Ambulance)',
+      lab_staff: 'Chief Diagnostics Officer',
+      pharmacy_staff: 'Central Blood Bank Lead',
+      super_admin: 'National Health Authority Admin',
+    };
+
+    const user: AuthUser = {
+      id: 'user-' + Date.now(),
+      email: `${role}@smartmedical.com`,
+      name: roleNames[role] || 'Registered Member',
+      role,
+      abhaId: role === 'patient' ? 'ABHA-9102-4410-8812' : undefined,
+      licenseNo: role === 'doctor' ? 'MED-CA-88192' : undefined,
+      phone: '+91 8114240263',
+      isEmailVerified: true,
+      isPhoneVerified: true,
+    };
+
+    setCurrentUser(user);
+    setCurrentRole(role);
+    localStorage.setItem('biomed_user', JSON.stringify(user));
+  };
+
   const handleOpenAuthForRole = (role?: UserRole) => {
     if (role) setCurrentRole(role);
     setShowAuthModal(true);
@@ -102,6 +130,7 @@ export default function App() {
         {!currentUser ? (
           <LandingHomePage
             onOpenAuthModal={handleOpenAuthForRole}
+            onInstantLogin={handleInstantLogin}
             onTriggerSOS={() => setShowSOSModal(true)}
           />
         ) : (
