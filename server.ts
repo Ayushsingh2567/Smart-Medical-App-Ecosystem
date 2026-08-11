@@ -824,7 +824,7 @@ app.post("/api/auth/register", async (req, res) => {
       },
     });
 
-    // 1. Dispatch Email OTP
+    // Dispatch Email OTP to user's email address
     await sendWelcomeVerificationEmail(
       email,
       name,
@@ -833,14 +833,11 @@ app.post("/api/auth/register", async (req, res) => {
       generatedAbha || generatedLicense || undefined
     );
 
-    // 2. Dispatch Mobile SMS OTP
-    await sendSmsOtpGateway(targetPhone, name, phoneOtp);
-
     await prisma.auditLog.create({
       data: {
         actor: user.name,
-        action: "DUAL_OTP_DISPATCHED",
-        details: `Registered ${user.role}: ${user.email} & ${targetPhone} (Dual Email & Mobile OTP sent)`,
+        action: "EMAIL_OTP_DISPATCHED",
+        details: `Registered ${user.role}: ${user.email} (Email Verification OTP sent)`,
       },
     });
 
@@ -857,7 +854,6 @@ app.post("/api/auth/register", async (req, res) => {
         hospitalId: user.hospitalId,
         phone: user.phone,
         isEmailVerified: user.isEmailVerified,
-        isPhoneVerified: user.isPhoneVerified,
       },
       token: "demo-jwt-session-token-" + Date.now(),
     });
@@ -868,22 +864,18 @@ app.post("/api/auth/register", async (req, res) => {
 });
 
 app.post("/api/auth/verify-otp", async (req, res) => {
-  const { email, emailOtp, phoneOtp } = req.body;
+  const { email, emailOtp } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return res.status(404).json({ error: "User account not found" });
     }
 
-    const isEmailValid = user.emailVerificationCode === String(emailOtp).trim();
-    const isPhoneValid = user.phoneVerificationCode === String(phoneOtp).trim();
+    const isEmailValid =
+      !user.emailVerificationCode || user.emailVerificationCode === String(emailOtp).trim();
 
     if (!isEmailValid) {
       return res.status(400).json({ error: "Invalid Email OTP code. Please check your email inbox." });
-    }
-
-    if (!isPhoneValid) {
-      return res.status(400).json({ error: "Invalid Mobile Phone OTP code. Please check your SMS messages." });
     }
 
     const updatedUser = await prisma.user.update({
@@ -891,8 +883,6 @@ app.post("/api/auth/verify-otp", async (req, res) => {
       data: {
         isEmailVerified: true,
         emailVerificationCode: null,
-        isPhoneVerified: true,
-        phoneVerificationCode: null,
       },
     });
 
