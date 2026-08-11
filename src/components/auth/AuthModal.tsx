@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   Activity,
   AlertCircle,
+  ArrowLeft,
   Building2,
   CheckCircle2,
   ChevronDown,
@@ -296,7 +297,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       const data = await res.json().catch(() => null);
       if (res.ok && data && data.success) {
-        setSuccessMsg(`Password updated successfully for ${emailInput}! You can now Sign In with your new password.`);
+        setSuccessMsg(`Password updated successfully for ${emailInput}! Please Sign In with your new password.`);
         setPasswordInput(newPasswordInput);
         setAuthMode('login');
         return;
@@ -442,7 +443,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {authMode === 'verify_email_otp'
                   ? 'Email OTP Verification'
                   : authMode === 'change_password'
-                  ? 'Change Account Password'
+                  ? 'Forgot / Change Password'
                   : authMode === 'register'
                   ? 'Create Real Member Account'
                   : 'Member Sign In'}
@@ -460,8 +461,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </div>
 
-        {/* Mode Toggles */}
-        {authMode !== 'verify_email_otp' && (
+        {/* Mode Toggles (Sign Up & Sign In Tabs) */}
+        {authMode !== 'verify_email_otp' && authMode !== 'change_password' && (
           <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
             <button
               type="button"
@@ -496,23 +497,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             >
               <KeyRound className="w-3.5 h-3.5 inline mr-1" />
               Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMode('change_password');
-                setError('');
-                setSuccessMsg('');
-                setIsAlreadyRegistered(false);
-              }}
-              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                authMode === 'change_password'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Lock className="w-3.5 h-3.5 inline mr-1" />
-              Change Password
             </button>
           </div>
         )}
@@ -674,8 +658,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         ) : authMode === 'change_password' ? (
           /* MODE 2: CHANGE / RESET PASSWORD */
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthMode('login');
+                  setError('');
+                }}
+                className="text-xs font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1 cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
+              </button>
+            </div>
+
             <div className="p-3.5 bg-indigo-50 border border-indigo-200 rounded-2xl text-xs space-y-1">
-              <span className="font-extrabold text-indigo-950 block">Change Account Password</span>
+              <span className="font-extrabold text-indigo-950 block">Forgot / Change Account Password</span>
               <p className="text-indigo-800">
                 Enter your registered Email Address and new password to update your account credentials.
               </p>
@@ -721,7 +718,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-indigo-600/20 transition-all cursor-pointer disabled:opacity-50"
             >
               <Lock className="w-4 h-4" />
-              {loading ? 'Updating Password...' : 'Update Password & Switch to Sign In'}
+              {loading ? 'Updating Password...' : 'Update Password & Return to Sign In'}
             </button>
           </form>
         ) : (
@@ -765,23 +762,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             )}
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-slate-700">
-                  Email Address * {authMode === 'login' && '(or ABHA ID / License No.)'}
-                </label>
-                {authMode === 'login' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAuthMode('change_password');
-                      setError('');
-                    }}
-                    className="text-[11px] text-teal-700 font-bold hover:underline"
-                  >
-                    Forgot / Change Password?
-                  </button>
-                )}
-              </div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Email Address * {authMode === 'login' && '(or ABHA ID / License No.)'}
+              </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
@@ -796,9 +779,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Account Password *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Account Password *
+                </label>
+                {authMode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('change_password');
+                      setError('');
+                      setSuccessMsg('');
+                    }}
+                    className="text-[11px] text-teal-700 font-extrabold hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
