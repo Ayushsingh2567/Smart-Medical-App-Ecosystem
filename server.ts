@@ -954,6 +954,40 @@ app.post("/api/auth/resend-otps", async (req, res) => {
   }
 });
 
+app.post("/api/auth/change-password", async (req, res) => {
+  const { email, newPassword, emailOtp } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ error: "No account found registered with this email address." });
+    }
+
+    if (emailOtp && user.emailVerificationCode && user.emailVerificationCode !== String(emailOtp).trim()) {
+      return res.status(400).json({ error: "Invalid Email OTP verification code." });
+    }
+
+    await prisma.user.update({
+      where: { email },
+      data: {
+        passwordHash: newPassword,
+        emailVerificationCode: null,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        actor: user.name,
+        action: "PASSWORD_CHANGED",
+        details: `Password changed for user ${email}`,
+      },
+    });
+
+    return res.json({ success: true, message: "Password updated successfully! You can now Sign In with your new password." });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to update password", details: err.message });
+  }
+});
+
 
 app.post("/api/auth/verify-email", async (req, res) => {
   const { email, code } = req.body;

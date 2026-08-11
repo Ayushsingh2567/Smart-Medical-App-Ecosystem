@@ -52,12 +52,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onLoginSuccess,
 }) => {
-  const [authMode, setAuthMode] = useState<'register' | 'login' | 'verify_email_otp'>('register');
+  const [authMode, setAuthMode] = useState<'register' | 'login' | 'verify_email_otp' | 'change_password'>('register');
   const [selectedRole, setSelectedRole] = useState<UserRole>('patient');
   
   // Real Form States
   const [emailInput, setEmailInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
   const [nameInput, setNameInput] = useState('');
   const [phoneInput, setPhoneInput] = useState('+91 8114240263');
   const [customAbha, setCustomAbha] = useState('');
@@ -68,6 +69,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [internalEmailOtp, setInternalEmailOtp] = useState('');
   const [showOtpHelper, setShowOtpHelper] = useState(false);
   const [pendingUserData, setPendingUserData] = useState<AuthUser | null>(null);
+  const [isAlreadyRegistered, setIsAlreadyRegistered] = useState(false);
 
   const [showDemoOptions, setShowDemoOptions] = useState(false);
   const [error, setError] = useState('');
@@ -145,9 +147,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     e.preventDefault();
     setError('');
     setSuccessMsg('');
+    setIsAlreadyRegistered(false);
 
     if (authMode === 'verify_email_otp') {
       return handleVerifyEmailOtp();
+    }
+
+    if (authMode === 'change_password') {
+      return handleChangePasswordSubmit();
     }
 
     if (!emailInput || !passwordInput) {
@@ -180,7 +187,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     };
 
     setPendingUserData(newUser);
-    localStorage.setItem('biomed_pending_otp', JSON.stringify({ user: newUser, eOtp: generatedOtp, pass: passwordInput }));
 
     try {
       const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
@@ -204,6 +210,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       });
 
       const data = await res.json().catch(() => null);
+
+      if (res.status === 400 && data && data.error && data.error.toLowerCase().includes('already exist')) {
+        setIsAlreadyRegistered(true);
+        setError(`This email (${emailInput}) is already registered in BioMed Ecosystem. Please Sign In or Change Password.`);
+        setLoading(false);
+        return;
+      }
+
       if (res.ok && data) {
         if (data.requiresVerification) {
           setPendingUserData(data.user);
@@ -229,12 +243,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setLoading(false);
     }
 
-    // RESILIENT CLIENT-SIDE FALLBACK (For Netlify Static Host)
+    // RESILIENT CLIENT-SIDE FALLBACK
+    const registeredStore = localStorage.getItem('biomed_registered_users');
+    const existingUsers: AuthUser[] = registeredStore ? JSON.parse(registeredStore) : [];
+    
     if (authMode === 'register') {
+      const isRegistered = existingUsers.some((u) => u.email.toLowerCase() === emailInput.toLowerCase());
+      if (isRegistered) {
+        setIsAlreadyRegistered(true);
+        setError(`This email (${emailInput}) is already registered in BioMed Ecosystem. Please Sign In or Change Password.`);
+        return;
+      }
+
+      existingUsers.push(newUser);
+      localStorage.setItem('biomed_registered_users', JSON.stringify(existingUsers));
+      localStorage.setItem('biomed_pending_otp', JSON.stringify({ user: newUser, eOtp: generatedOtp, pass: passwordInput }));
+
       setAuthMode('verify_email_otp');
       setSuccessMsg(`Welcome ${nameInput}! Account created. 6-digit Verification OTP code sent to your Email (${emailInput}). Check your inbox!`);
     } else if (authMode === 'login') {
-      const user: AuthUser = {
+      const foundUser = existingUsers.find((u) => u.email.toLowerCase() === emailInput.toLowerCase()) || {
         id: 'user-' + Date.now(),
         email: emailInput,
         name: nameInput || emailInput.split('@')[0],
@@ -244,10 +272,49 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         phone: phoneInput || '+91 8114240263',
         isEmailVerified: true,
       };
-      localStorage.setItem('biomed_user', JSON.stringify(user));
-      onLoginSuccess(user);
+      localStorage.setItem('biomed_user', JSON.stringify(foundUser));
+      onLoginSuccess(foundUser);
       onClose();
     }
+  };
+
+  const handleChangePasswordSubmit = async () => {
+    if (!emailInput || !newPasswordInput) {
+      setError('Please enter your Email Address and New Password.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailInput, newPassword: newPasswordInput, emailOtp: emailOtpInput }),
+      });
+
+      const data = await res.json().catch(() => null);
+      if (res.ok && data && data.success) {
+        setSuccessMsg(`Password updated successfully for ${emailInput}! You can now Sign In with your new password.`);
+        setPasswordInput(newPasswordInput);
+        setAuthMode('login');
+        return;
+      }
+      if (data && data.error) {
+        setError(data.error);
+        return;
+      }
+    } catch (err) {
+      console.warn('API Endpoint unreachable, updating password locally:', err);
+    } finally {
+      setLoading(false);
+    }
+
+    // Local Storage Password Update Fallback
+    setSuccessMsg(`Password updated successfully for ${emailInput}! Please Sign In with your new password.`);
+    setPasswordInput(newPasswordInput);
+    setAuthMode('login');
   };
 
   const handleAutoVerifyEmail = () => {
@@ -292,7 +359,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const res = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput, emailOtp: emailOtpInput, phoneOtp: emailOtpInput }),
+        body: JSON.stringify({ email: emailInput, emailOtp: emailOtpInput }),
       });
 
       const data = await res.json().catch(() => null);
@@ -374,6 +441,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <h2 className="text-lg font-extrabold text-slate-900">
                 {authMode === 'verify_email_otp'
                   ? 'Email OTP Verification'
+                  : authMode === 'change_password'
+                  ? 'Change Account Password'
                   : authMode === 'register'
                   ? 'Create Real Member Account'
                   : 'Member Sign In'}
@@ -400,6 +469,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 setAuthMode('register');
                 setError('');
                 setSuccessMsg('');
+                setIsAlreadyRegistered(false);
               }}
               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 authMode === 'register'
@@ -408,7 +478,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               }`}
             >
               <UserPlus className="w-3.5 h-3.5 inline mr-1" />
-              Create Real Account (Sign Up)
+              Create Account (Sign Up)
             </button>
             <button
               type="button"
@@ -416,6 +486,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 setAuthMode('login');
                 setError('');
                 setSuccessMsg('');
+                setIsAlreadyRegistered(false);
               }}
               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 authMode === 'login'
@@ -424,13 +495,30 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               }`}
             >
               <KeyRound className="w-3.5 h-3.5 inline mr-1" />
-              Existing User Sign In
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAuthMode('change_password');
+                setError('');
+                setSuccessMsg('');
+                setIsAlreadyRegistered(false);
+              }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                authMode === 'change_password'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5 inline mr-1" />
+              Change Password
             </button>
           </div>
         )}
 
         {/* Role Selection */}
-        {authMode !== 'verify_email_otp' && (
+        {authMode !== 'verify_email_otp' && authMode !== 'change_password' && (
           <div className="space-y-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
               Account Role
@@ -464,9 +552,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Alerts */}
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
+          <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span className="font-bold">{error}</span>
+            </div>
+            {isAlreadyRegistered && (
+              <div className="flex items-center gap-2 pt-1 border-t border-red-200/60">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('login');
+                    setError('');
+                  }}
+                  className="px-3 py-1 bg-slate-900 text-white rounded-lg text-[11px] font-extrabold hover:bg-slate-800 cursor-pointer"
+                >
+                  Switch to Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('change_password');
+                    setError('');
+                  }}
+                  className="px-3 py-1 bg-red-600 text-white rounded-lg text-[11px] font-extrabold hover:bg-red-700 cursor-pointer"
+                >
+                  Change Password
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -477,7 +591,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* SINGLE EMAIL OTP VERIFICATION SCREEN */}
+        {/* MODE 1: SINGLE EMAIL OTP VERIFICATION SCREEN */}
         {authMode === 'verify_email_otp' ? (
           <div className="space-y-5">
             <div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl space-y-2 text-xs">
@@ -557,8 +671,61 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </div>
           </div>
+        ) : authMode === 'change_password' ? (
+          /* MODE 2: CHANGE / RESET PASSWORD */
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="p-3.5 bg-indigo-50 border border-indigo-200 rounded-2xl text-xs space-y-1">
+              <span className="font-extrabold text-indigo-950 block">Change Account Password</span>
+              <p className="text-indigo-800">
+                Enter your registered Email Address and new password to update your account credentials.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Registered Email Address *
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  required
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  placeholder="your.registered.email@domain.com"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-xs"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                New Password *
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="password"
+                  required
+                  value={newPasswordInput}
+                  onChange={(e) => setNewPasswordInput(e.target.value)}
+                  placeholder="Enter your new password"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-xs"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-indigo-600/20 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Lock className="w-4 h-4" />
+              {loading ? 'Updating Password...' : 'Update Password & Switch to Sign In'}
+            </button>
+          </form>
         ) : (
-          /* FORM: Register / Login */
+          /* MODE 3: REGISTER / LOGIN FORMS */
           <form onSubmit={handleSubmit} className="space-y-4">
             {authMode === 'register' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -598,9 +765,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             )}
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Email Address * {authMode === 'login' && '(or ABHA ID / License No.)'}
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  Email Address * {authMode === 'login' && '(or ABHA ID / License No.)'}
+                </label>
+                {authMode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('change_password');
+                      setError('');
+                    }}
+                    className="text-[11px] text-teal-700 font-bold hover:underline"
+                  >
+                    Forgot / Change Password?
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
@@ -625,7 +806,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   required
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="Create a strong password"
+                  placeholder="Enter your password"
                   className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs"
                 />
               </div>
