@@ -23,6 +23,7 @@ interface NavbarProps {
   onRoleChange: (role: UserRole) => void;
   onTriggerSOS: () => void;
   onOpenWorkflow: () => void;
+  onOpenHospitalMap: () => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   currentUser: AuthUser | null;
@@ -35,6 +36,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRoleChange,
   onTriggerSOS,
   onOpenWorkflow,
+  onOpenHospitalMap,
   activeTab,
   setActiveTab,
   currentUser,
@@ -96,11 +98,21 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Quick Action Controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {/* SEARCH HOSPITAL ON MAP BUTTON FOR ALL DOMAINS */}
+            <button
+              onClick={onOpenHospitalMap}
+              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-2 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              title="Search Nearby Hospitals on Interactive Radar Map"
+            >
+              <Hospital className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span className="hidden sm:inline">Search Hospital on Map</span>
+            </button>
+
             {/* Persona Switch (Only allowed for Super Admin when logged in) */}
             {isSuperAdmin && (
               <div className="relative group">
-                <button className="flex items-center gap-1.5 bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer">
+                <button className="flex items-center gap-1.5 bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer">
                   {activeRoleObj?.icon}
                   <span className="hidden sm:inline">Switch Role</span>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400" />

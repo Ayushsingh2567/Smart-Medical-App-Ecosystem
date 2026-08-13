@@ -3,6 +3,7 @@ import { UserRole } from './types';
 import { Navbar } from './components/Navbar';
 import { AuthModal, AuthUser } from './components/auth/AuthModal';
 import { LandingHomePage } from './components/home/LandingHomePage';
+import { HospitalMapModal } from './components/HospitalMapModal';
 
 // Patient View Components
 import { PatientDashboard } from './components/patient/PatientDashboard';
@@ -32,6 +33,7 @@ export default function App() {
   const [activePatientTab, setActivePatientTab] = useState<string>('dashboard');
   const [showSOSModal, setShowSOSModal] = useState<boolean>(false);
   const [showReferralWorkflowModal, setShowReferralWorkflowModal] = useState<boolean>(false);
+  const [showHospitalMapModal, setShowHospitalMapModal] = useState<boolean>(false);
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -117,6 +119,7 @@ export default function App() {
         onRoleChange={setCurrentRole}
         onTriggerSOS={() => setShowSOSModal(true)}
         onOpenWorkflow={() => setShowReferralWorkflowModal(true)}
+        onOpenHospitalMap={() => setShowHospitalMapModal(true)}
         activeTab={activePatientTab}
         setActiveTab={setActivePatientTab}
         currentUser={currentUser}
@@ -196,6 +199,12 @@ export default function App() {
         <ReferralWorkflowModal
           isOpen={showReferralWorkflowModal}
           onClose={() => setShowReferralWorkflowModal(false)}
+        />
+      )}
+      {showHospitalMapModal && (
+        <HospitalMapModal
+          isOpen={showHospitalMapModal}
+          onClose={() => setShowHospitalMapModal(false)}
         />
       )}
 
