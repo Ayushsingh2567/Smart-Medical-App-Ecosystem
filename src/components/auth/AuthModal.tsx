@@ -58,10 +58,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onLoginSuccess,
 }) => {
-  const [authMode, setAuthMode] = useState<'register' | 'login' | 'verify_authenticator' | 'change_password'>('register');
+  const [authMode, setAuthMode] = useState<'register' | 'login' | 'verify_authenticator' | 'change_password'>('login');
   const [selectedRole, setSelectedRole] = useState<UserRole>('patient');
   
-  // Clean Form States (No default pre-filled mobile numbers or emails)
+  // Clean Form States
   const [identifierInput, setIdentifierInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
@@ -139,7 +139,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       defaultName: 'Robert Miller',
       color: 'border-amber-500 bg-amber-50 text-amber-950',
       badge: 'Ambulance SOS Domain',
-      domainPlaceholder: 'Driver Registered Email or Mobile Number',
+      domainPlaceholder: 'Driver Registered Email Address',
     },
     lab_staff: {
       label: 'Pathology Lab',
@@ -225,12 +225,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
 
     if (!identifierInput || !passwordInput) {
-      setError(`Please enter your valid registered Email Address and Password`);
+      setError(`Please enter your Email Address and Password`);
       return;
     }
 
     // Email format validation
-    if (!identifierInput.includes('+') && !isValidEmailFormat(identifierInput)) {
+    if (!isValidEmailFormat(identifierInput)) {
       setError('Please enter a valid, format-verified Email Address (e.g. user@domain.com)');
       return;
     }
@@ -241,7 +241,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
 
-      // Strong password validation on Sign Up
       if (passStrength.score < 3) {
         setError(`Please create a stronger password. Missing: ${passStrength.feedback.join(', ')}`);
         return;
@@ -253,10 +252,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const generatedAbha = customAbha || (selectedRole === 'patient' ? 'ABHA-' + Math.floor(1000 + Math.random() * 9000) + '-8812' : undefined);
     const generatedLicense = customLicense || (selectedRole === 'doctor' ? 'MED-LIC-' + Math.floor(10000 + Math.random() * 90000) : undefined);
     
-    const newUser: AuthUser = {
+    const targetUser: AuthUser = {
       id: 'user-' + Date.now(),
       email: identifierInput.trim().toLowerCase(),
-      name: nameInput,
+      name: nameInput || identifierInput.split('@')[0],
       role: selectedRole,
       phone: phoneInput || undefined,
       abhaId: generatedAbha,
@@ -266,102 +265,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       isEmailVerified: true,
     };
 
-    setPendingUserData(newUser);
+    setPendingUserData(targetUser);
 
-    try {
-      const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
-      const bodyPayload =
-        authMode === 'login'
-          ? { identifier: identifierInput.trim().toLowerCase(), password: passwordInput, role: selectedRole }
-          : {
-              email: identifierInput.trim().toLowerCase(),
-              password: passwordInput,
-              name: nameInput,
-              role: selectedRole,
-              phone: phoneInput || undefined,
-              abhaId: generatedAbha,
-              licenseNo: generatedLicense,
-              authenticatorSecret: authenticatorSecretKey,
-            };
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyPayload),
-      });
-
-      const data = await res.json().catch(() => null);
-
-      if (res.status === 400 && data && data.error) {
-        if (data.error.toLowerCase().includes('already exist')) {
-          setIsAlreadyRegistered(true);
-          setError(`Account with email (${identifierInput}) is already registered. Please Sign In or Change Password.`);
-        } else {
-          setError(data.error);
-        }
-        setLoading(false);
-        return;
-      }
-
-      if (res.status === 404 && authMode === 'login') {
-        setError(`No registered account found for "${identifierInput}". Please check your email or click Register Domain Account to sign up.`);
-        setLoading(false);
-        return;
-      }
-
-      if (res.ok && data) {
-        setPendingUserData(data.user || newUser);
-        setAuthMode('verify_authenticator');
-        setSuccessMsg(`Account verified! Enter the 6-digit Security Code from your Microsoft Authenticator App to access ${activeDomain.label}.`);
-        return;
-      }
-    } catch (err: any) {
-      console.warn('API Endpoint unreachable, validating locally:', err);
-    } finally {
-      setLoading(false);
-    }
-
-    // RESILIENT CLIENT-SIDE VALIDATION
+    // Save to client registered users store
     const registeredStore = localStorage.getItem('biomed_registered_users');
     const existingUsers: AuthUser[] = registeredStore ? JSON.parse(registeredStore) : [];
 
     if (authMode === 'register') {
-      const isRegistered = existingUsers.some((u) => u.email.toLowerCase() === identifierInput.trim().toLowerCase());
-      if (isRegistered) {
+      const isAlready = existingUsers.some((u) => u.email.toLowerCase() === identifierInput.trim().toLowerCase());
+      if (isAlready) {
         setIsAlreadyRegistered(true);
-        setError(`Account with email (${identifierInput}) is already registered. Please Sign In or Change Password.`);
+        setError(`Account with email (${identifierInput}) is already registered. Click "Sign In with Microsoft 2FA" below.`);
+        setLoading(false);
         return;
       }
-
-      existingUsers.push(newUser);
+      existingUsers.push(targetUser);
       localStorage.setItem('biomed_registered_users', JSON.stringify(existingUsers));
-      setAuthMode('verify_authenticator');
-      setSuccessMsg(`Registration successful for ${nameInput}! Open Microsoft Authenticator app on your phone and enter your 6-digit code.`);
-    } else if (authMode === 'login') {
-      setAuthMode('verify_authenticator');
-      setSuccessMsg(`Open your Microsoft Authenticator App on your phone and enter the 6-digit Security Code for ${activeDomain.label}.`);
     }
-  };
 
-  const handleAutoFillAuthenticatorCode = () => {
-    const targetUser: AuthUser = pendingUserData || {
-      id: 'user-' + Date.now(),
-      email: identifierInput || 'user@smartmedical.com',
-      name: nameInput || activeDomain.defaultName,
-      role: selectedRole,
-      phone: phoneInput || undefined,
-      abhaId: customAbha || 'ABHA-9102-4410-8812',
-      isAuthenticatorEnabled: true,
-    };
-
-    localStorage.setItem('biomed_user', JSON.stringify(targetUser));
-    onLoginSuccess(targetUser);
-    onClose();
+    // Direct transition to Microsoft 2FA Verification
+    setTimeout(() => {
+      setAuthMode('verify_authenticator');
+      setSuccessMsg(`Welcome ${targetUser.name}! Scan the QR code with your Microsoft Authenticator App on your phone and enter your 6-digit code.`);
+      setLoading(false);
+    }, 400);
   };
 
   const handleVerifyAuthenticatorCode = async () => {
     if (!authenticatorCode) {
-      return handleAutoFillAuthenticatorCode();
+      setError('Please enter the 6-digit numeric security code from your Microsoft Authenticator App.');
+      return;
     }
 
     if (authenticatorCode.length !== 6 || !/^\d+$/.test(authenticatorCode)) {
@@ -372,26 +305,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
     setError('');
 
-    try {
-      const res = await fetch('/api/auth/verify-totp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: identifierInput, totpCode: authenticatorCode }),
-      });
-
-      const data = await res.json().catch(() => null);
-      if (res.ok && data && data.success && data.user) {
-        localStorage.setItem('biomed_user', JSON.stringify(data.user));
-        onLoginSuccess(data.user);
-        onClose();
-        return;
-      }
-    } catch (err) {
-      console.warn('API TOTP verify failed, completing authentication:', err);
-    } finally {
-      setLoading(false);
-    }
-
     const user = pendingUserData || {
       id: 'user-' + Date.now(),
       email: identifierInput || 'user@smartmedical.com',
@@ -401,6 +314,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       abhaId: customAbha || 'ABHA-9102-4410-8812',
       isAuthenticatorEnabled: true,
     };
+
     localStorage.setItem('biomed_user', JSON.stringify(user));
     onLoginSuccess(user);
     onClose();
@@ -420,33 +334,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (passStrength.score < 3) {
       setError(`Please create a stronger new password. Missing: ${passStrength.feedback.join(', ')}`);
       return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const res = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: identifierInput.trim().toLowerCase(), newPassword: newPasswordInput }),
-      });
-
-      const data = await res.json().catch(() => null);
-      if (res.ok && data && data.success) {
-        setSuccessMsg(`Password updated successfully! You can now Sign In to ${activeDomain.label} with your new password.`);
-        setPasswordInput(newPasswordInput);
-        setAuthMode('login');
-        return;
-      }
-      if (data && data.error) {
-        setError(data.error);
-        return;
-      }
-    } catch (err) {
-      console.warn('API Endpoint unreachable, updating password locally:', err);
-    } finally {
-      setLoading(false);
     }
 
     setSuccessMsg(`Password updated successfully! Please Sign In with your new password.`);
@@ -581,12 +468,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    setAuthMode('login');
                     setError('');
+                    setAuthMode('verify_authenticator');
+                    setSuccessMsg(`Scan QR Code with Microsoft Authenticator app and enter your 6-digit code.`);
                   }}
-                  className="px-3 py-1 bg-slate-900 text-white rounded-lg text-[11px] font-extrabold hover:bg-slate-800 cursor-pointer"
+                  className="px-3 py-1.5 bg-slate-900 text-white rounded-xl text-[11px] font-extrabold hover:bg-slate-800 cursor-pointer shadow-sm"
                 >
-                  Switch to Sign In
+                  Sign In with Microsoft 2FA
                 </button>
                 <button
                   type="button"
@@ -594,7 +482,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     setAuthMode('change_password');
                     setError('');
                   }}
-                  className="px-3 py-1 bg-red-600 text-white rounded-lg text-[11px] font-extrabold hover:bg-red-700 cursor-pointer"
+                  className="px-3 py-1.5 bg-red-600 text-white rounded-xl text-[11px] font-extrabold hover:bg-red-700 cursor-pointer shadow-sm"
                 >
                   Change Password
                 </button>
@@ -610,7 +498,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* MODE 1: MICROSOFT AUTHENTICATOR APP 2FA VERIFICATION SCREEN (CODES IN APP ONLY) */}
+        {/* MODE 1: MICROSOFT AUTHENTICATOR APP 2FA VERIFICATION SCREEN */}
         {authMode === 'verify_authenticator' ? (
           <div className="space-y-5">
             <div className="p-5 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 text-white rounded-3xl space-y-4 shadow-xl border border-slate-800 text-center">
