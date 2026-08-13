@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import {
   Building2,
   CheckCircle2,
+  Compass,
   CreditCard,
   Filter,
   Hospital as HospIcon,
   MapPin,
+  Navigation,
   PhoneCall,
   Plus,
   Search,
@@ -26,16 +28,6 @@ export const BedAvailability: React.FC = () => {
   // Payment Modal State
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedHospForBed, setSelectedHospForBed] = useState<Hospital | null>(null);
-
-  // Add Hospital Modal
-  const [showAddHospitalModal, setShowAddHospitalModal] = useState(false);
-  const [hospName, setHospName] = useState('');
-  const [hospAddress, setHospAddress] = useState('');
-  const [hospPhone, setHospPhone] = useState('');
-  const [icuAvailable, setIcuAvailable] = useState(10);
-  const [ventilatorAvailable, setVentilatorAvailable] = useState(5);
-  const [oxygenAvailable, setOxygenAvailable] = useState(25);
-  const [normalAvailable, setNormalAvailable] = useState(50);
 
   useEffect(() => {
     fetchHospitals();
@@ -65,213 +57,163 @@ export const BedAvailability: React.FC = () => {
     }
   };
 
-  const handleAddHospital = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!hospName || !hospAddress) return;
-
-    const newHosp: Hospital = {
-      id: 'hosp-' + Date.now(),
-      name: hospName,
-      address: hospAddress,
-      location: { lat: 28.6139, lng: 77.209 },
-      distanceKm: 2.5,
-      contactPhone: hospPhone || '+1 (555) 000-0000',
-      emergencyNumber: hospPhone || '+1 (555) 000-0000',
-      beds: {
-        icu: { total: icuAvailable + 5, available: Number(icuAvailable) },
-        ventilator: { total: ventilatorAvailable + 3, available: Number(ventilatorAvailable) },
-        oxygen: { total: oxygenAvailable + 10, available: Number(oxygenAvailable) },
-        normal: { total: normalAvailable + 20, available: Number(normalAvailable) },
-        pediatric: { total: 10, available: 5 },
-      },
-      specialties: ['Emergency Trauma', 'Critical Care', 'General Medicine'],
-      rating: 4.8,
-    };
-
-    setHospitals((prev) => [newHosp, ...prev]);
-    setShowAddHospitalModal(false);
-    setHospName('');
-    setHospAddress('');
-    setHospPhone('');
-  };
-
-  const filteredHospitals = hospitals.filter((h) => {
+  const filteredHospitals = hospitals.filter((hosp) => {
     const matchesSearch =
-      h.name.toLowerCase().includes(search.toLowerCase()) ||
-      h.address.toLowerCase().includes(search.toLowerCase()) ||
-      h.specialties.some((s) => s.toLowerCase().includes(search.toLowerCase()));
+      hosp.name.toLowerCase().includes(search.toLowerCase()) ||
+      hosp.address.toLowerCase().includes(search.toLowerCase()) ||
+      hosp.specialties.some((s) => s.toLowerCase().includes(search.toLowerCase()));
 
-    if (!matchesSearch) return false;
+    const matchesBed =
+      filterBedType === 'all' ||
+      (filterBedType === 'icu' && hosp.beds.icu.available > 0) ||
+      (filterBedType === 'ventilator' && hosp.beds.ventilator.available > 0) ||
+      (filterBedType === 'oxygen' && hosp.beds.oxygen.available > 0);
 
-    if (filterBedType === 'icu') return h.beds.icu.available > 0;
-    if (filterBedType === 'ventilator') return h.beds.ventilator.available > 0;
-    if (filterBedType === 'oxygen') return h.beds.oxygen.available > 0;
-
-    return true;
+    return matchesSearch && matchesBed;
   });
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
+      {/* Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 sm:p-8 rounded-3xl text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 px-3 py-1 rounded-full text-xs font-semibold mb-3">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            Real-Time Bed Availability & Seat Pre-booking
+            <HospIcon className="w-3.5 h-3.5" />
+            Live National ER & ICU Bed Mesh
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
-            Live Hospital Bed & ICU Reservation Portal
+            Real-Time ICU & Hospital Bed Availability
           </h1>
           <p className="text-slate-300 text-xs sm:text-sm">
-            Search nearby hospitals for real-time ICU, Ventilator, Oxygen, and Normal bed vacancies. Instant seat pre-booking with integrated online payment.
+            Locate nearby hospitals near you with live ICU, Ventilator, and Oxygen bed capacity & pre-book emergency seat reservations.
           </p>
         </div>
-
-        <button
-          onClick={() => setShowAddHospitalModal(true)}
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold rounded-xl flex items-center gap-2 shadow-lg shrink-0 cursor-pointer transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          + Register New Hospital / Beds
-        </button>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-3">
-        <div className="relative flex-1 w-full">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by hospital name, location, or specialty (e.g., Cardiology)..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Filter className="w-4 h-4 text-slate-500" />
-          <select
-            value={filterBedType}
-            onChange={(e) => setFilterBedType(e.target.value)}
-            className="px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 bg-slate-50 outline-none"
-          >
-            <option value="all">All Bed Types</option>
-            <option value="icu">ICU Beds Only</option>
-            <option value="ventilator">Ventilator Beds Only</option>
-            <option value="oxygen">Oxygen Beds Only</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Booking Toast Banner */}
+      {/* Success Toast */}
       {bookedHospital && (
-        <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-3 text-xs text-emerald-900">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+        <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-2xl flex items-center gap-3 text-xs text-emerald-900 animate-in fade-in">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
           <div>
-            <span className="font-bold block">Hospital Bed Seat Reserved at {bookedHospital}!</span>
-            Seat booking payment confirmed. The hospital ER triage desk has been alerted for immediate admission.
+            <span className="font-bold block">ICU Emergency Seat Deposit Confirmed!</span>
+            Seat reservation pre-booked at <span className="font-extrabold underline">{bookedHospital}</span>.
           </div>
         </div>
       )}
 
-      {/* Hospital List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* SEARCH HOSPITALS NEAR ME SEARCH BAR */}
+      <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-3">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative flex-1 w-full">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search Nearby Hospitals Near Me by Name, Location/City, or Emergency Specialty..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 text-xs text-slate-800 focus:border-indigo-500 bg-slate-50 outline-none"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <select
+              value={filterBedType}
+              onChange={(e) => setFilterBedType(e.target.value)}
+              className="px-3.5 py-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 outline-none flex-1 sm:flex-none"
+            >
+              <option value="all">All Bed Types</option>
+              <option value="icu">Must Have ICU Available</option>
+              <option value="ventilator">Must Have Ventilator Available</option>
+              <option value="oxygen">Must Have Oxygen Available</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Hospital Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredHospitals.map((hosp) => (
-          <div key={hosp.id} className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4 flex flex-col justify-between hover:shadow-md transition-all">
+          <div
+            key={hosp.id}
+            className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+          >
             <div className="space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="font-extrabold text-base text-slate-900">{hosp.name}</h3>
-                <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">{hosp.name}</h3>
+                  <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                    {hosp.address} • <strong className="text-slate-800 font-mono">{hosp.distanceKm} km away</strong>
+                  </div>
+                </div>
+                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2.5 py-1 rounded-full shrink-0">
                   ★ {hosp.rating}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" /> {hosp.address}
-              </p>
-            </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-slate-100">
-              <div className="p-2.5 bg-red-50/70 border border-red-100 rounded-xl">
-                <span className="text-[10px] uppercase font-bold text-red-700 block">ICU Beds</span>
-                <span className="text-sm font-black text-red-950">{hosp.beds.icu.available} / {hosp.beds.icu.total}</span>
-              </div>
-              <div className="p-2.5 bg-indigo-50/70 border border-indigo-100 rounded-xl">
-                <span className="text-[10px] uppercase font-bold text-indigo-700 block">Ventilators</span>
-                <span className="text-sm font-black text-indigo-950">{hosp.beds.ventilator.available} / {hosp.beds.ventilator.total}</span>
-              </div>
-              <div className="p-2.5 bg-teal-50/70 border border-teal-100 rounded-xl">
-                <span className="text-[10px] uppercase font-bold text-teal-700 block">Oxygen Beds</span>
-                <span className="text-sm font-black text-teal-950">{hosp.beds.oxygen.available} / {hosp.beds.oxygen.total}</span>
-              </div>
-              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-[10px] uppercase font-bold text-slate-600 block">Normal Ward</span>
-                <span className="text-sm font-black text-slate-900">{hosp.beds.normal.available} / {hosp.beds.normal.total}</span>
+              <div className="flex flex-wrap gap-1 pt-1">
+                {hosp.specialties.map((spec, idx) => (
+                  <span key={idx} className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                    {spec}
+                  </span>
+                ))}
               </div>
             </div>
 
-            <button
-              onClick={() => handleInitiateBedBooking(hosp)}
-              className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-xs cursor-pointer transition-all flex items-center justify-center gap-2"
-            >
-              <CreditCard className="w-4 h-4 text-emerald-400" />
-              Pay & Reserve Hospital Bed Seat ($150 Deposit)
-            </button>
+            {/* Bed Matrix */}
+            <div className="grid grid-cols-4 gap-2 text-center text-xs pt-2 border-t border-slate-100">
+              <div className="p-2 bg-red-50 rounded-2xl border border-red-100">
+                <div className="text-[10px] text-red-700 font-bold uppercase">ICU Beds</div>
+                <div className="text-base font-black text-red-900">{hosp.beds.icu.available}</div>
+              </div>
+              <div className="p-2 bg-amber-50 rounded-2xl border border-amber-100">
+                <div className="text-[10px] text-amber-700 font-bold uppercase">Ventilator</div>
+                <div className="text-base font-black text-amber-900">{hosp.beds.ventilator.available}</div>
+              </div>
+              <div className="p-2 bg-blue-50 rounded-2xl border border-blue-100">
+                <div className="text-[10px] text-blue-700 font-bold uppercase">Oxygen</div>
+                <div className="text-base font-black text-blue-900">{hosp.beds.oxygen.available}</div>
+              </div>
+              <div className="p-2 bg-emerald-50 rounded-2xl border border-emerald-100">
+                <div className="text-[10px] text-emerald-700 font-bold uppercase">Normal</div>
+                <div className="text-base font-black text-emerald-900">{hosp.beds.normal.available}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => handleInitiateBedBooking(hosp)}
+                className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all"
+              >
+                <CreditCard className="w-4 h-4" />
+                Pre-Book ICU Seat Deposit ($150)
+              </button>
+
+              <a
+                href={`tel:${hosp.emergencyNumber}`}
+                className="px-3.5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-2xl text-xs flex items-center gap-1 cursor-pointer"
+                title="Call ER Desk"
+              >
+                <PhoneCall className="w-4 h-4" /> Call
+              </a>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Payment Modal */}
-      {showPaymentModal && selectedHospForBed && (
-        <PaymentModal
-          isOpen={showPaymentModal}
-          onClose={() => setShowPaymentModal(false)}
-          title="Hospital Emergency Bed Seat Pre-Booking"
-          amount={150.00}
-          serviceType="HOSPITAL_BED"
-          itemName={`Emergency ICU Bed Seat Reservation at ${selectedHospForBed.name}`}
-          onPaymentSuccess={handleBedPaymentCompleted}
-        />
-      )}
-
-      {/* Add Hospital Modal */}
-      {showAddHospitalModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
-          <form onSubmit={handleAddHospital} className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-sm font-bold text-slate-900">Register New Hospital Facility</h3>
-              <button type="button" onClick={() => setShowAddHospitalModal(false)} className="text-slate-400 font-bold text-sm">✕</button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold block mb-1">Hospital Name *</label>
-                <input type="text" required value={hospName} onChange={(e) => setHospName(e.target.value)} placeholder="e.g. Metro Multispecialty Hospital" className="w-full p-2.5 border rounded-xl" />
-              </div>
-              <div>
-                <label className="font-bold block mb-1">Location Address *</label>
-                <input type="text" required value={hospAddress} onChange={(e) => setHospAddress(e.target.value)} placeholder="Full street address & city" className="w-full p-2.5 border rounded-xl" />
-              </div>
-              <div>
-                <label className="font-bold block mb-1">Emergency Phone Number</label>
-                <input type="tel" value={hospPhone} onChange={(e) => setHospPhone(e.target.value)} placeholder="+1 (555) 000-0000" className="w-full p-2.5 border rounded-xl" />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="font-bold block mb-1">ICU Beds Available</label>
-                  <input type="number" value={icuAvailable} onChange={(e) => setIcuAvailable(Number(e.target.value))} className="w-full p-2.5 border rounded-xl" />
-                </div>
-                <div>
-                  <label className="font-bold block mb-1">Ventilator Beds</label>
-                  <input type="number" value={ventilatorAvailable} onChange={(e) => setVentilatorAvailable(Number(e.target.value))} className="w-full p-2.5 border rounded-xl" />
-                </div>
-              </div>
-            </div>
-
-            <button type="submit" className="w-full py-2.5 bg-indigo-600 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer">Register Hospital</button>
-          </form>
-        </div>
-      )}
+      {/* Payment Gateway Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        serviceTitle="Hospital ICU Bed Pre-Booking Deposit"
+        itemName={`ICU Bed Seat Deposit at ${selectedHospForBed?.name}`}
+        totalAmount={150.00}
+        onPaymentSuccess={handleBedBedPaymentCompleted}
+      />
     </div>
   );
+
+  function handleBedBedPaymentCompleted(txn: PaymentTransaction) {
+    handleBedPaymentCompleted(txn);
+  }
 };
