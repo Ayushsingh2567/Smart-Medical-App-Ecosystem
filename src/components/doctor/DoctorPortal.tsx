@@ -274,6 +274,16 @@ export const DoctorPortal: React.FC = () => {
             <Plus className="w-4 h-4" />
             + Dispatch Hospital Referral
           </button>
+
+          <button
+            onClick={() => {
+              alert("🚑 Emergency ALS Ambulance Unit #AMB-ALS-9102 Dispatched!\n\nDriver: Robert Miller (+91 8114240263)\nPickup Location: Clinic / Hospital OPD Triage\nReceiving ER Destination: City Central ICU Bed #04\nLive GPS navigation transmitted to Paramedic Driver Terminal.");
+            }}
+            className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-extrabold rounded-xl flex items-center gap-2 shadow-lg cursor-pointer transition-all"
+          >
+            <Truck className="w-4 h-4" />
+            + Book & Dispatch Ambulance
+          </button>
         </div>
       </div>
 
