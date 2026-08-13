@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AlertTriangle,
   Bell,
@@ -18,6 +18,7 @@ import {
   Trash2,
   Truck,
   Upload,
+  X,
 } from 'lucide-react';
 import { MedicineReminder, PaymentTransaction } from '../../types';
 import { PaymentModal } from '../payment/PaymentModal';
@@ -31,9 +32,10 @@ export const MedicineManager: React.FC = () => {
   // Add Medicine Reminder Modal State
   const [showAddMedModal, setShowAddMedModal] = useState(false);
   const [medName, setMedName] = useState('');
-  const [dosage, setDosage] = useState('');
+  const [dosage, setDosage] = useState('1 Tablet');
   const [frequency, setFrequency] = useState('Once Daily');
   const [timing, setTiming] = useState('After Meals');
+  const [alarmTime, setAlarmTime] = useState('08:00 AM');
   const [prescribedBy, setPrescribedBy] = useState('');
 
   // Explicit Order Medicine & Doctor Prescription Upload Modal State
@@ -51,6 +53,24 @@ export const MedicineManager: React.FC = () => {
   const [activeDeliveries, setActiveDeliveries] = useState<PaymentTransaction[]>([]);
   const [deliverySuccessToast, setDeliverySuccessToast] = useState('');
 
+  // Load and sync reminders with localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('biomed_reminders');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setReminders(parsed);
+      } catch (err) {
+        console.error('Error loading stored reminders:', err);
+      }
+    }
+  }, []);
+
+  const saveRemindersToStorage = (updated: MedicineReminder[]) => {
+    setReminders(updated);
+    localStorage.setItem('biomed_reminders', JSON.stringify(updated));
+  };
+
   const handleInitiateHomeDelivery = (itemName: string, amount: number) => {
     setOrderedItemName(itemName);
     setOrderTotalAmount(amount);
@@ -58,35 +78,35 @@ export const MedicineManager: React.FC = () => {
   };
 
   const toggleTaken = (id: string) => {
-    setReminders((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, takenToday: !r.takenToday } : r))
-    );
+    const updated = reminders.map((r) => (r.id === id ? { ...r, takenToday: !r.takenToday } : r));
+    saveRemindersToStorage(updated);
   };
 
   const handleDeleteReminder = (id: string) => {
-    setReminders((prev) => prev.filter((r) => r.id !== id));
+    const updated = reminders.filter((r) => r.id !== id);
+    saveRemindersToStorage(updated);
   };
 
   const handleAddMedicine = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!medName) return;
+    if (!medName.trim()) return;
 
     const newMed: MedicineReminder = {
       id: 'med-' + Date.now(),
-      name: medName,
+      name: medName.trim(),
       dosage: dosage || '1 Tablet',
       frequency,
       timing,
-      times: ['08:00 AM'],
+      times: [alarmTime],
       active: true,
       takenToday: false,
-      prescribedBy: prescribedBy || 'Self Scheduled',
+      prescribedBy: prescribedBy.trim() || 'Self Scheduled',
     };
 
-    setReminders((prev) => [newMed, ...prev]);
+    saveRemindersToStorage([newMed, ...reminders]);
     setShowAddMedModal(false);
     setMedName('');
-    setDosage('');
+    setDosage('1 Tablet');
     setPrescribedBy('');
   };
 
@@ -148,14 +168,14 @@ export const MedicineManager: React.FC = () => {
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={handleInitiateOrderModal}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-xl flex items-center gap-2 shadow-lg cursor-pointer transition-all"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold rounded-xl flex items-center gap-2 shadow-lg cursor-pointer transition-all active:scale-95"
           >
             <Truck className="w-4 h-4" />
             Order Pharmacy Home Delivery
           </button>
           <button
             onClick={() => setShowAddMedModal(true)}
-            className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold rounded-xl flex items-center gap-2 shadow-lg cursor-pointer transition-all"
+            className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold rounded-xl flex items-center gap-2 shadow-lg cursor-pointer transition-all active:scale-95"
           >
             <Plus className="w-4 h-4" />
             + Add Medicine
@@ -174,7 +194,7 @@ export const MedicineManager: React.FC = () => {
         </div>
       )}
 
-      {/* Active Orders List */}
+      {/* Active Deliveries */}
       {activeDeliveries.length > 0 && (
         <div className="bg-slate-900 text-white p-5 rounded-3xl border border-slate-800 space-y-3 shadow-xl">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -212,9 +232,12 @@ export const MedicineManager: React.FC = () => {
               <Pill className="w-5 h-5 text-rose-600" />
               Active Daily Medication Schedule
             </h2>
-            <span className="text-xs font-bold text-slate-500">
-              {reminders.filter((r) => r.takenToday).length} of {reminders.length} Taken Today
-            </span>
+            <button
+              onClick={() => setShowAddMedModal(true)}
+              className="text-xs font-extrabold text-rose-600 hover:underline cursor-pointer flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add Medicine
+            </button>
           </div>
 
           {reminders.length === 0 ? (
@@ -222,6 +245,12 @@ export const MedicineManager: React.FC = () => {
               <Pill className="w-10 h-10 text-slate-300 mx-auto" />
               <p className="text-xs font-bold text-slate-600">No Active Medicine Reminders</p>
               <p className="text-[11px] text-slate-400">Click "+ Add Medicine" or order doorstep pharmacy delivery.</p>
+              <button
+                onClick={() => setShowAddMedModal(true)}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-extrabold rounded-xl text-xs inline-flex items-center gap-1.5 cursor-pointer shadow-sm transition-all"
+              >
+                <Plus className="w-4 h-4" /> Add Medicine Alarm Now
+              </button>
             </div>
           ) : (
             <div className="space-y-3">
@@ -334,7 +363,115 @@ export const MedicineManager: React.FC = () => {
         </div>
       </div>
 
-      {/* EXPLICIT ORDER MEDICINE & DOCTOR PRESCRIPTION MODAL */}
+      {/* MODAL 1: INSTANT ADD MEDICINE SCHEDULE MODAL */}
+      {showAddMedModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-slate-900 border border-slate-200 animate-in fade-in">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Pill className="w-4 h-4 text-rose-600" />
+                Add New Medication & Dosage Alarm
+              </h3>
+              <button onClick={() => setShowAddMedModal(false)} className="text-slate-400 font-bold text-sm hover:text-slate-800 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddMedicine} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Medicine Name & Strength *</label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={medName}
+                  onChange={(e) => setMedName(e.target.value)}
+                  placeholder="e.g. Atorvastatin 10mg / Metformin 500mg"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 font-medium focus:border-rose-500 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Dosage Amount</label>
+                  <input
+                    type="text"
+                    value={dosage}
+                    onChange={(e) => setDosage(e.target.value)}
+                    placeholder="e.g. 1 Tablet / 5ml Syrup"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Frequency</label>
+                  <select
+                    value={frequency}
+                    onChange={(e) => setFrequency(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium"
+                  >
+                    <option value="Once Daily">Once Daily</option>
+                    <option value="Twice Daily">Twice Daily (BD)</option>
+                    <option value="Three Times Daily">Three Times Daily (TDS)</option>
+                    <option value="As Needed (PRN)">As Needed (PRN)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Meal Timing</label>
+                  <select
+                    value={timing}
+                    onChange={(e) => setTiming(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium"
+                  >
+                    <option value="After Meals">After Meals</option>
+                    <option value="Before Meals">Before Meals</option>
+                    <option value="With Meals">With Meals</option>
+                    <option value="At Bedtime">At Bedtime</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Alarm Time</label>
+                  <select
+                    value={alarmTime}
+                    onChange={(e) => setAlarmTime(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-mono font-bold"
+                  >
+                    <option value="08:00 AM">08:00 AM (Morning)</option>
+                    <option value="01:00 PM">01:00 PM (Afternoon)</option>
+                    <option value="08:00 PM">08:00 PM (Evening)</option>
+                    <option value="10:00 PM">10:00 PM (Night)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Prescribing Doctor (Optional)</label>
+                <input
+                  type="text"
+                  value={prescribedBy}
+                  onChange={(e) => setPrescribedBy(e.target.value)}
+                  placeholder="e.g. Dr. Sarah Jenkins, MD"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+                Schedule Medication Alarm
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: ORDER MEDICINE & DOCTOR PRESCRIPTION MODAL */}
       {showOrderMedModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-slate-900 border border-slate-200">
