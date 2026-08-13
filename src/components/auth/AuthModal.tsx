@@ -47,6 +47,70 @@ export interface AuthUser {
   isAuthenticatorEnabled?: boolean;
 }
 
+// Base32 decoder helper for RFC 6238 TOTP
+function base32ToBytes(base32: string): Uint8Array {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  const clean = base32.toUpperCase().replace(/=/g, '').replace(/\s/g, '');
+  for (let i = 0; i < clean.length; i++) {
+    const val = alphabet.indexOf(clean[i]);
+    if (val < 0) continue;
+    bits += val.toString(2).padStart(5, '0');
+  }
+  const bytes = new Uint8Array(Math.floor(bits.length / 8));
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(bits.substring(i * 8, (i + 1) * 8), 2);
+  }
+  return bytes;
+}
+
+// Real HMAC-SHA1 TOTP Code Generator (RFC 6238 standard)
+async function generateTotpCode(secretKey: string, timeSeconds: number = Math.floor(Date.now() / 1000)): Promise<string> {
+  try {
+    const keyBytes = base32ToBytes(secretKey);
+    const counter = Math.floor(timeSeconds / 30);
+    const buffer = new ArrayBuffer(8);
+    const view = new DataView(buffer);
+    view.setBigUint64(0, BigInt(counter), false);
+
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      keyBytes,
+      { name: 'HMAC', hash: 'SHA-1' },
+      false,
+      ['sign']
+    );
+
+    const signature = await crypto.subtle.sign('HMAC', cryptoKey, buffer);
+    const sigBytes = new Uint8Array(signature);
+
+    const offset = sigBytes[sigBytes.length - 1] & 0xf;
+    const binary =
+      ((sigBytes[offset] & 0x7f) << 24) |
+      ((sigBytes[offset + 1] & 0xff) << 16) |
+      ((sigBytes[offset + 2] & 0xff) << 8) |
+      (sigBytes[offset + 3] & 0xff);
+
+    const otp = binary % 1000000;
+    return otp.toString().padStart(6, '0');
+  } catch (e) {
+    return '';
+  }
+}
+
+// Strict TOTP Verifier (checks current 30s window + adjacent windows for time drift)
+async function isValidTotpCode(userCode: string, secretKey: string = 'JBSWY3DPEHPK3PXP'): Promise<boolean> {
+  const cleanUserCode = userCode.trim();
+  if (cleanUserCode.length !== 6 || !/^\d+$/.test(cleanUserCode)) return false;
+
+  const now = Math.floor(Date.now() / 1000);
+  const currentOtp = await generateTotpCode(secretKey, now);
+  const prevOtp = await generateTotpCode(secretKey, now - 30);
+  const nextOtp = await generateTotpCode(secretKey, now + 30);
+
+  return cleanUserCode === currentOtp || cleanUserCode === prevOtp || cleanUserCode === nextOtp;
+}
+
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -292,18 +356,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   const handleVerifyAuthenticatorCode = async () => {
-    if (!authenticatorCode) {
+    if (!authenticatorCode || authenticatorCode.length !== 6 || !/^\d+$/.test(authenticatorCode)) {
       setError('Please enter the 6-digit numeric security code from your Microsoft Authenticator App.');
-      return;
-    }
-
-    if (authenticatorCode.length !== 6 || !/^\d+$/.test(authenticatorCode)) {
-      setError('Please enter a valid 6-digit numeric security code from your Microsoft Authenticator App.');
       return;
     }
 
     setLoading(true);
     setError('');
+
+    // Strict Real TOTP Code Verification
+    const isValid = await isValidTotpCode(authenticatorCode, authenticatorSecretKey);
+
+    if (!isValid) {
+      setError(`Invalid Microsoft Authenticator Code "${authenticatorCode}". Please check your mobile phone app and enter the live 6-digit code for secret key JBSWY 3DPEH PK3PX P.`);
+      setLoading(false);
+      return;
+    }
 
     const user = pendingUserData || {
       id: 'user-' + Date.now(),
