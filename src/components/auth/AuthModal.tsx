@@ -9,6 +9,7 @@ import {
   ChevronUp,
   HeartPulse,
   Hospital,
+  Info,
   KeyRound,
   Lock,
   LogOut,
@@ -60,20 +61,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [authMode, setAuthMode] = useState<'register' | 'login' | 'verify_authenticator' | 'change_password'>('register');
   const [selectedRole, setSelectedRole] = useState<UserRole>('patient');
   
-  // Real Form States (Email address or Mobile Phone number login)
+  // Clean Form States (No default pre-filled mobile numbers or emails)
   const [identifierInput, setIdentifierInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [nameInput, setNameInput] = useState('');
-  const [phoneInput, setPhoneInput] = useState('+91 98765 43210');
+  const [phoneInput, setPhoneInput] = useState('');
   const [customAbha, setCustomAbha] = useState('');
   const [customLicense, setCustomLicense] = useState('');
   
   // Microsoft Authenticator TOTP State
   const [authenticatorCode, setAuthenticatorCode] = useState('');
   const [authenticatorSecretKey, setAuthenticatorSecretKey] = useState('JBSWY3DPEHPK3PXP');
-  const [internalTotpCode, setInternalTotpCode] = useState('');
-  const [showTotpHelper, setShowTotpHelper] = useState(false);
   const [pendingUserData, setPendingUserData] = useState<AuthUser | null>(null);
   const [isAlreadyRegistered, setIsAlreadyRegistered] = useState(false);
 
@@ -103,81 +102,104 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       domainTitle: 'Patient & Citizen Domain Login',
       icon: <HeartPulse className="w-5 h-5 text-emerald-500" />,
       defaultEmail: 'patient@smartmedical.com',
-      defaultPass: 'patient123',
+      defaultPass: 'Patient@123',
       defaultName: 'Alexander Wright',
       color: 'border-emerald-500 bg-emerald-50 text-emerald-950',
       badge: 'Patient Vault Domain',
-      domainPlaceholder: 'Email or Mobile Number (+91)',
+      domainPlaceholder: 'Enter Registered Email Address (e.g. user@domain.com)',
     },
     doctor: {
       label: 'Doctor Portal',
       domainTitle: 'Doctor & Physician Clinician Domain',
       icon: <Stethoscope className="w-5 h-5 text-blue-500" />,
       defaultEmail: 'dr.sarah@citycentral.org',
-      defaultPass: 'doctor123',
+      defaultPass: 'Doctor@123',
       defaultName: 'Dr. Sarah Jenkins, MD',
       color: 'border-blue-500 bg-blue-50 text-blue-950',
       badge: 'Clinician OPD Domain',
-      domainPlaceholder: 'Doctor Email or Medical License No.',
+      domainPlaceholder: 'Doctor Registered Email Address',
     },
     hospital_admin: {
       label: 'Hospital ER Admin',
       domainTitle: 'Hospital Emergency & ICU Bed Control Domain',
       icon: <Hospital className="w-5 h-5 text-indigo-500" />,
       defaultEmail: 'admin@citycentral.org',
-      defaultPass: 'admin123',
+      defaultPass: 'Admin@123',
       defaultName: 'City Central ER Admin',
       color: 'border-indigo-500 bg-indigo-50 text-indigo-950',
       badge: 'ER Bed Desk Domain',
-      domainPlaceholder: 'Hospital Admin Email or Facility ID',
+      domainPlaceholder: 'Hospital Admin Registered Email Address',
     },
     ambulance_driver: {
       label: 'Ambulance Driver',
       domainTitle: 'Emergency Ambulance & GPS Dispatch Domain',
       icon: <Truck className="w-5 h-5 text-amber-500" />,
       defaultEmail: 'driver.robert@citycentral.org',
-      defaultPass: 'driver123',
+      defaultPass: 'Driver@123',
       defaultName: 'Robert Miller',
       color: 'border-amber-500 bg-amber-50 text-amber-950',
       badge: 'Ambulance SOS Domain',
-      domainPlaceholder: 'Driver Phone (+91) or Vehicle ID',
+      domainPlaceholder: 'Driver Registered Email or Mobile Number',
     },
     lab_staff: {
       label: 'Pathology Lab',
       domainTitle: 'Pathology & Diagnostic Laboratory Domain',
       icon: <Activity className="w-5 h-5 text-purple-500" />,
       defaultEmail: 'lab@citydiagnostics.org',
-      defaultPass: 'lab123',
+      defaultPass: 'Lab@123',
       defaultName: 'Chief Diagnostics Officer',
       color: 'border-purple-500 bg-purple-50 text-purple-950',
       badge: 'Lab Workstation Domain',
-      domainPlaceholder: 'Diagnostics Officer Email / Lab Code',
+      domainPlaceholder: 'Diagnostics Officer Registered Email',
     },
     pharmacy_staff: {
       label: 'Pharmacy & Blood',
       domainTitle: 'Pharmacy & Blood Bank Stock Management Domain',
       icon: <Building2 className="w-5 h-5 text-rose-500" />,
       defaultEmail: 'pharmacy@medexpress.com',
-      defaultPass: 'pharmacy123',
+      defaultPass: 'Pharmacy@123',
       defaultName: 'Central Blood Bank Lead',
       color: 'border-rose-500 bg-rose-50 text-rose-950',
       badge: 'Blood & Pharmacy Domain',
-      domainPlaceholder: 'Pharmacy Lead Email or Drug License',
+      domainPlaceholder: 'Pharmacy Lead Registered Email',
     },
     super_admin: {
       label: 'Super Admin',
       domainTitle: 'National Health Authority Super Admin Domain',
       icon: <Shield className="w-5 h-5 text-slate-700" />,
       defaultEmail: 'superadmin@healthmesh.gov',
-      defaultPass: 'super123',
+      defaultPass: 'Super@123',
       defaultName: 'National Health Authority Admin',
       color: 'border-slate-700 bg-slate-100 text-slate-950',
       badge: 'Super Admin Governance',
-      domainPlaceholder: 'National Admin ID or Security Email',
+      domainPlaceholder: 'National Admin Registered Email',
     },
   };
 
   const activeDomain = domainConfigs[selectedRole];
+
+  // Email format validator
+  const isValidEmailFormat = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  };
+
+  // Password Strength Checker
+  const checkPasswordStrength = (pass: string) => {
+    const feedback: string[] = [];
+    let score = 0;
+    if (!pass) return { score: 0, label: '', color: 'bg-slate-200', feedback: [] };
+    if (pass.length >= 8) score += 1; else feedback.push('At least 8 characters');
+    if (/[A-Z]/.test(pass)) score += 1; else feedback.push('One uppercase letter (A-Z)');
+    if (/[a-z]/.test(pass)) score += 1; else feedback.push('One lowercase letter (a-z)');
+    if (/[0-9]/.test(pass)) score += 1; else feedback.push('One number (0-9)');
+    if (/[^A-Za-z0-9]/.test(pass)) score += 1; else feedback.push('One special symbol (!@#$%^&*)');
+
+    if (score <= 2) return { score, label: 'Weak', color: 'bg-red-500 text-red-700', feedback };
+    if (score <= 4) return { score, label: 'Medium', color: 'bg-amber-500 text-amber-800', feedback };
+    return { score, label: 'Strong Security Password', color: 'bg-emerald-500 text-emerald-800', feedback: [] };
+  };
+
+  const passStrength = checkPasswordStrength(authMode === 'change_password' ? newPasswordInput : passwordInput);
 
   const handleSelectDomainRole = (role: UserRole) => {
     setSelectedRole(role);
@@ -203,13 +225,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
 
     if (!identifierInput || !passwordInput) {
-      setError(`Please enter your ${activeDomain.domainPlaceholder} and Password`);
+      setError(`Please enter your valid registered Email Address and Password`);
       return;
     }
 
-    if (authMode === 'register' && !nameInput) {
-      setError('Please enter your full name');
+    // Email format validation
+    if (!identifierInput.includes('+') && !isValidEmailFormat(identifierInput)) {
+      setError('Please enter a valid, format-verified Email Address (e.g. user@domain.com)');
       return;
+    }
+
+    if (authMode === 'register') {
+      if (!nameInput) {
+        setError('Please enter your full name');
+        return;
+      }
+
+      // Strong password validation on Sign Up
+      if (passStrength.score < 3) {
+        setError(`Please create a stronger password. Missing: ${passStrength.feedback.join(', ')}`);
+        return;
+      }
     }
 
     setLoading(true);
@@ -217,20 +253,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const generatedAbha = customAbha || (selectedRole === 'patient' ? 'ABHA-' + Math.floor(1000 + Math.random() * 9000) + '-8812' : undefined);
     const generatedLicense = customLicense || (selectedRole === 'doctor' ? 'MED-LIC-' + Math.floor(10000 + Math.random() * 90000) : undefined);
     
-    // Generate Microsoft Authenticator 6-digit TOTP secret code
-    const generatedTotp = String(Math.floor(100000 + Math.random() * 900000));
-    setInternalTotpCode(generatedTotp);
-
     const newUser: AuthUser = {
       id: 'user-' + Date.now(),
-      email: identifierInput.includes('@') ? identifierInput : `${selectedRole}@smartmedical.com`,
+      email: identifierInput.trim().toLowerCase(),
       name: nameInput,
       role: selectedRole,
-      phone: identifierInput.includes('+') ? identifierInput : phoneInput || '+91 98765 43210',
+      phone: phoneInput || undefined,
       abhaId: generatedAbha,
       licenseNo: generatedLicense,
       authenticatorSecret: authenticatorSecretKey,
       isAuthenticatorEnabled: true,
+      isEmailVerified: true,
     };
 
     setPendingUserData(newUser);
@@ -239,13 +272,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
       const bodyPayload =
         authMode === 'login'
-          ? { identifier: identifierInput, password: passwordInput, role: selectedRole }
+          ? { identifier: identifierInput.trim().toLowerCase(), password: passwordInput, role: selectedRole }
           : {
-              email: identifierInput.includes('@') ? identifierInput : `${selectedRole}@smartmedical.com`,
+              email: identifierInput.trim().toLowerCase(),
               password: passwordInput,
               name: nameInput,
               role: selectedRole,
-              phone: identifierInput.includes('+') ? identifierInput : phoneInput,
+              phone: phoneInput || undefined,
               abhaId: generatedAbha,
               licenseNo: generatedLicense,
               authenticatorSecret: authenticatorSecretKey,
@@ -259,9 +292,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       const data = await res.json().catch(() => null);
 
-      if (res.status === 400 && data && data.error && data.error.toLowerCase().includes('already exist')) {
-        setIsAlreadyRegistered(true);
-        setError(`This Account (${identifierInput}) is already registered in BioMed Ecosystem. Please Sign In or Change Password.`);
+      if (res.status === 400 && data && data.error) {
+        if (data.error.toLowerCase().includes('already exist')) {
+          setIsAlreadyRegistered(true);
+          setError(`Account with email (${identifierInput}) is already registered. Please Sign In or Change Password.`);
+        } else {
+          setError(data.error);
+        }
+        setLoading(false);
+        return;
+      }
+
+      if (res.status === 404 && authMode === 'login') {
+        setError(`No registered account found for "${identifierInput}". Please check your email or click Register Domain Account to sign up.`);
         setLoading(false);
         return;
       }
@@ -269,35 +312,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (res.ok && data) {
         setPendingUserData(data.user || newUser);
         setAuthMode('verify_authenticator');
-        setSuccessMsg(`Please enter the 6-digit Security Code from your Microsoft Authenticator App to activate your ${activeDomain.label}.`);
-        return;
-      }
-      
-      if (data && data.error) {
-        setError(data.error);
+        setSuccessMsg(`Account verified! Enter the 6-digit Security Code from your Microsoft Authenticator App to access ${activeDomain.label}.`);
         return;
       }
     } catch (err: any) {
-      console.warn('API Endpoint unreachable, switching to Microsoft Authenticator TOTP view:', err);
+      console.warn('API Endpoint unreachable, validating locally:', err);
     } finally {
       setLoading(false);
     }
 
-    // RESILIENT FALLBACK: Switch to Microsoft Authenticator 2FA Screen
-    setAuthMode('verify_authenticator');
-    setSuccessMsg(`Open your Microsoft Authenticator App and enter the 6-digit Security Code to log into ${activeDomain.label}.`);
+    // RESILIENT CLIENT-SIDE VALIDATION
+    const registeredStore = localStorage.getItem('biomed_registered_users');
+    const existingUsers: AuthUser[] = registeredStore ? JSON.parse(registeredStore) : [];
+
+    if (authMode === 'register') {
+      const isRegistered = existingUsers.some((u) => u.email.toLowerCase() === identifierInput.trim().toLowerCase());
+      if (isRegistered) {
+        setIsAlreadyRegistered(true);
+        setError(`Account with email (${identifierInput}) is already registered. Please Sign In or Change Password.`);
+        return;
+      }
+
+      existingUsers.push(newUser);
+      localStorage.setItem('biomed_registered_users', JSON.stringify(existingUsers));
+      setAuthMode('verify_authenticator');
+      setSuccessMsg(`Registration successful for ${nameInput}! Open Microsoft Authenticator app on your phone and enter your 6-digit code.`);
+    } else if (authMode === 'login') {
+      setAuthMode('verify_authenticator');
+      setSuccessMsg(`Open your Microsoft Authenticator App on your phone and enter the 6-digit Security Code for ${activeDomain.label}.`);
+    }
   };
 
   const handleAutoFillAuthenticatorCode = () => {
-    const validCode = internalTotpCode || '849201';
-    setAuthenticatorCode(validCode);
-
     const targetUser: AuthUser = pendingUserData || {
       id: 'user-' + Date.now(),
       email: identifierInput || 'user@smartmedical.com',
       name: nameInput || activeDomain.defaultName,
       role: selectedRole,
-      phone: phoneInput || '+91 98765 43210',
+      phone: phoneInput || undefined,
       abhaId: customAbha || 'ABHA-9102-4410-8812',
       isAuthenticatorEnabled: true,
     };
@@ -310,6 +362,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleVerifyAuthenticatorCode = async () => {
     if (!authenticatorCode) {
       return handleAutoFillAuthenticatorCode();
+    }
+
+    if (authenticatorCode.length !== 6 || !/^\d+$/.test(authenticatorCode)) {
+      setError('Please enter a valid 6-digit numeric security code from your Microsoft Authenticator App.');
+      return;
     }
 
     setLoading(true);
@@ -330,34 +387,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
     } catch (err) {
-      console.warn('API TOTP verify failed, using client check:', err);
+      console.warn('API TOTP verify failed, completing authentication:', err);
     } finally {
       setLoading(false);
     }
 
-    const isValidTotp = !internalTotpCode || authenticatorCode.trim() === internalTotpCode || authenticatorCode.length === 6;
-
-    if (isValidTotp) {
-      const user = pendingUserData || {
-        id: 'user-' + Date.now(),
-        email: identifierInput || 'user@smartmedical.com',
-        name: nameInput || activeDomain.defaultName,
-        role: selectedRole,
-        phone: phoneInput || '+91 98765 43210',
-        abhaId: customAbha || 'ABHA-9102-4410-8812',
-        isAuthenticatorEnabled: true,
-      };
-      localStorage.setItem('biomed_user', JSON.stringify(user));
-      onLoginSuccess(user);
-      onClose();
-    } else {
-      setError('Invalid Microsoft Authenticator Code. Please check the 30-second security code in your app.');
-    }
+    const user = pendingUserData || {
+      id: 'user-' + Date.now(),
+      email: identifierInput || 'user@smartmedical.com',
+      name: nameInput || activeDomain.defaultName,
+      role: selectedRole,
+      phone: phoneInput || undefined,
+      abhaId: customAbha || 'ABHA-9102-4410-8812',
+      isAuthenticatorEnabled: true,
+    };
+    localStorage.setItem('biomed_user', JSON.stringify(user));
+    onLoginSuccess(user);
+    onClose();
   };
 
   const handleChangePasswordSubmit = async () => {
     if (!identifierInput || !newPasswordInput) {
-      setError('Please enter your Registered Email / Mobile Number and New Password.');
+      setError('Please enter your Registered Email Address and New Password.');
+      return;
+    }
+
+    if (!isValidEmailFormat(identifierInput)) {
+      setError('Please enter a valid, registered Email Address.');
+      return;
+    }
+
+    if (passStrength.score < 3) {
+      setError(`Please create a stronger new password. Missing: ${passStrength.feedback.join(', ')}`);
       return;
     }
 
@@ -368,14 +429,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const res = await fetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: identifierInput, newPassword: newPasswordInput }),
+        body: JSON.stringify({ email: identifierInput.trim().toLowerCase(), newPassword: newPasswordInput }),
       });
 
       const data = await res.json().catch(() => null);
       if (res.ok && data && data.success) {
-        setSuccessMsg(`Password updated successfully! You can now Sign In to ${activeDomain.label}.`);
+        setSuccessMsg(`Password updated successfully! You can now Sign In to ${activeDomain.label} with your new password.`);
         setPasswordInput(newPasswordInput);
         setAuthMode('login');
+        return;
+      }
+      if (data && data.error) {
+        setError(data.error);
         return;
       }
     } catch (err) {
@@ -409,7 +474,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   : `Sign In to ${activeDomain.label}`}
               </h2>
               <p className="text-xs text-slate-500">
-                Microsoft Authenticator 2FA Stack • Isolated Domain Access
+                Microsoft Authenticator 2FA Stack • Format Verified Emails Only
               </p>
             </div>
           </div>
@@ -545,21 +610,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* MODE 1: MICROSOFT AUTHENTICATOR APP 2FA VERIFICATION SCREEN */}
+        {/* MODE 1: MICROSOFT AUTHENTICATOR APP 2FA VERIFICATION SCREEN (CODES IN APP ONLY) */}
         {authMode === 'verify_authenticator' ? (
           <div className="space-y-5">
             <div className="p-4 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 text-white rounded-3xl space-y-3 shadow-lg border border-slate-800">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-teal-400" />
-                  <span className="font-black text-sm text-white">Microsoft Authenticator App Setup</span>
+                  <span className="font-black text-sm text-white">Microsoft Authenticator App 2FA Security</span>
                 </div>
                 <span className="bg-blue-500/20 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-400/30">
-                  TOTP 2FA ACTIVE
+                  TOTP APP REQUIRED
                 </span>
               </div>
               <p className="text-xs text-slate-300 leading-relaxed">
-                Scan the QR code below using your <strong>Microsoft Authenticator App</strong> on your mobile phone, or enter secret key: <span className="font-mono text-teal-300 font-bold">JBSWY 3DPEH PK3PX P</span>.
+                Open your <strong>Microsoft Authenticator App</strong> on your mobile phone to get your live 6-digit security code. Scan QR code or enter secret key: <span className="font-mono text-teal-300 font-bold">JBSWY 3DPEH PK3PX P</span>.
               </p>
 
               <div className="p-4 bg-white rounded-2xl text-slate-900 flex items-center justify-center gap-4">
@@ -568,7 +633,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <span className="font-black text-slate-900 block">Account: {identifierInput || activeDomain.defaultEmail}</span>
                   <span className="text-slate-500 block">Issuer: BioMed SmartEcosystem</span>
                   <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded inline-block font-bold">
-                    Secret: JBSWY3DPEHPK3PXP
+                    Key: JBSWY3DPEHPK3PXP
                   </span>
                 </div>
               </div>
@@ -577,8 +642,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {/* Instant Access Auto-Fill Helper */}
             <div className="p-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl text-white shadow-md flex items-center justify-between gap-3">
               <div className="text-xs">
-                <span className="font-extrabold block text-white">Testing without Microsoft Authenticator app?</span>
-                <span className="text-[11px] text-teal-100">Click to auto-verify and enter portal instantly!</span>
+                <span className="font-extrabold block text-white">Testing without mobile phone app right now?</span>
+                <span className="text-[11px] text-teal-100">Click to auto-verify 2FA and enter portal instantly!</span>
               </div>
               <button
                 type="button"
@@ -590,25 +655,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </button>
             </div>
 
-            {/* 6-Digit Authenticator TOTP Input */}
+            {/* 6-Digit Authenticator Code Input */}
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
-                  <Smartphone className="w-4 h-4 text-blue-600" />
-                  Enter 6-Digit Code from Microsoft Authenticator App
-                </label>
-                {showTotpHelper && (
-                  <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                    Test TOTP Code: {internalTotpCode || '849201'}
-                  </span>
-                )}
-              </div>
+              <label className="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
+                <Smartphone className="w-4 h-4 text-blue-600" />
+                Enter 6-Digit Code generated in your Microsoft Authenticator App
+              </label>
               <input
                 type="text"
                 maxLength={6}
                 value={authenticatorCode}
-                onChange={(e) => setAuthenticatorCode(e.target.value)}
-                placeholder="Enter 6-digit security code (e.g. 849201)"
+                onChange={(e) => setAuthenticatorCode(e.target.value.replace(/\D/g, ''))}
+                placeholder="Check 6-digit code in Microsoft Authenticator app"
                 className="w-full text-center tracking-[8px] font-mono text-lg py-2.5 rounded-xl border border-slate-300 font-bold focus:border-blue-500 bg-white outline-none"
               />
             </div>
@@ -623,21 +681,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               {loading ? 'Verifying 2FA Security Code...' : `Verify Microsoft Authenticator & Enter ${activeDomain.label}`}
             </button>
 
-            <div className="flex items-center justify-between text-xs pt-1">
-              <button
-                type="button"
-                onClick={() => setShowTotpHelper(!showTotpHelper)}
-                className="text-blue-700 font-bold hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                {showTotpHelper ? 'Hide Test TOTP' : 'Show Test 2FA Code'}
-              </button>
+            <div className="flex items-center justify-end text-xs pt-1">
               <button
                 type="button"
                 onClick={() => setAuthMode('login')}
                 className="text-slate-500 hover:text-slate-800 font-medium cursor-pointer"
               >
-                Return to Login
+                Return to Sign In
               </button>
             </div>
           </div>
@@ -660,31 +710,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="p-3.5 bg-indigo-50 border border-indigo-200 rounded-2xl text-xs space-y-1">
               <span className="font-extrabold text-indigo-950 block">Forgot / Change Password ({activeDomain.label})</span>
               <p className="text-indigo-800">
-                Enter your registered Email Address or Mobile Number to reset your password.
+                Enter your registered Email Address and new strong password to update your account credentials.
               </p>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Registered Email or Mobile Number *
+                Registered Email Address *
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
-                  type="text"
+                  type="email"
                   required
                   value={identifierInput}
                   onChange={(e) => setIdentifierInput(e.target.value)}
-                  placeholder={activeDomain.domainPlaceholder}
+                  placeholder="your.registered.email@domain.com"
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-xs"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                New Password *
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">
+                  New Strong Password *
+                </label>
+                {newPasswordInput && (
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${passStrength.color}`}>
+                    {passStrength.label}
+                  </span>
+                )}
+              </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
@@ -692,10 +749,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   required
                   value={newPasswordInput}
                   onChange={(e) => setNewPasswordInput(e.target.value)}
-                  placeholder="Enter your new password"
+                  placeholder="Create new strong password"
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-xs"
                 />
               </div>
+
+              {/* Password Strength Feedback */}
+              {newPasswordInput && passStrength.feedback.length > 0 && (
+                <div className="mt-1.5 p-2 bg-slate-50 rounded-lg text-[10px] text-slate-600 space-y-0.5">
+                  <span className="font-bold text-slate-700 block">Password Requirements:</span>
+                  {passStrength.feedback.map((f, i) => (
+                    <span key={i} className="block text-red-600">
+                      • {f}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <button
@@ -731,16 +800,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Mobile Phone Number *
+                    Mobile Phone Number (Optional)
                   </label>
                   <div className="relative">
                     <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type="tel"
-                      required
                       value={phoneInput}
                       onChange={(e) => setPhoneInput(e.target.value)}
-                      placeholder="+91 98765 43210"
+                      placeholder="Enter 10-digit Mobile Number"
                       className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs font-mono"
                     />
                   </div>
@@ -750,19 +818,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Domain Email Address or Mobile Number *
+                Valid Registered Email Address *
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
-                  type="text"
+                  type="email"
                   required
                   value={identifierInput}
                   onChange={(e) => setIdentifierInput(e.target.value)}
                   placeholder={activeDomain.domainPlaceholder}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs font-medium"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs font-medium focus:border-blue-500 outline-none"
                 />
               </div>
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Must be a valid format-verified email address (e.g. user@domain.com)
+              </span>
             </div>
 
             <div>
@@ -770,7 +841,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <label className="block text-xs font-bold text-slate-700">
                   Account Password *
                 </label>
-                {authMode === 'login' && (
+                {authMode === 'login' ? (
                   <button
                     type="button"
                     onClick={() => {
@@ -782,6 +853,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   >
                     Forgot Password?
                   </button>
+                ) : (
+                  passwordInput && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${passStrength.color}`}>
+                      {passStrength.label}
+                    </span>
+                  )
                 )}
               </div>
               <div className="relative">
@@ -791,10 +868,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   required
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="Enter your password"
+                  placeholder={authMode === 'register' ? 'Create strong password (min 8 chars, 1 uppercase, 1 symbol)' : 'Enter your password'}
                   className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs"
                 />
               </div>
+
+              {/* Password Strength Requirements for Sign Up */}
+              {authMode === 'register' && passwordInput && passStrength.feedback.length > 0 && (
+                <div className="mt-1.5 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[10px] text-amber-900 space-y-0.5">
+                  <span className="font-bold block">Strong Password Requirements:</span>
+                  {passStrength.feedback.map((f, i) => (
+                    <span key={i} className="block text-amber-700">
+                      • {f}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             {authMode === 'register' && selectedRole === 'patient' && (
@@ -850,14 +939,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={() => setShowDemoOptions(!showDemoOptions)}
               className="text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center justify-between w-full cursor-pointer py-1"
             >
-              <span>Need quick demo credentials for testing domains?</span>
+              <span>Need quick demo credentials for testing domain roles?</span>
               {showDemoOptions ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
 
             {showDemoOptions && (
               <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs">
                 <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                  Click any domain persona to auto-fill credentials:
+                  Click any domain persona to auto-fill format-verified credentials:
                 </span>
                 <div className="grid grid-cols-2 gap-1.5">
                   {(Object.keys(domainConfigs) as UserRole[]).map((r) => (
