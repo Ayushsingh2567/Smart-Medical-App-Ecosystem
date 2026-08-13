@@ -10,7 +10,7 @@ export const PharmacyPortal: React.FC = () => {
     {
       id: 'ORD-881920',
       patientName: 'Registered Patient Member',
-      phone: '+91 8114240263',
+      phone: '+91 98765 43210',
       address: 'Flat 402, Green Valley Apartments, Main Street',
       items: 'Amlodipine 5mg (30 Tabs), Paracetamol 500mg (10 Tabs)',
       amount: 45.00,

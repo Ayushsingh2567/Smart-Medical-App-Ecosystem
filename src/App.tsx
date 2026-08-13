@@ -81,7 +81,7 @@ export default function App() {
       role,
       abhaId: role === 'patient' ? 'ABHA-9102-4410-8812' : undefined,
       licenseNo: role === 'doctor' ? 'MED-CA-88192' : undefined,
-      phone: '+91 8114240263',
+      phone: '+91 98765 43210',
       isEmailVerified: true,
       isPhoneVerified: true,
     };

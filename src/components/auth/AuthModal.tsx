@@ -65,7 +65,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [passwordInput, setPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [nameInput, setNameInput] = useState('');
-  const [phoneInput, setPhoneInput] = useState('+91 8114240263');
+  const [phoneInput, setPhoneInput] = useState('+91 98765 43210');
   const [customAbha, setCustomAbha] = useState('');
   const [customLicense, setCustomLicense] = useState('');
   
@@ -226,7 +226,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       email: identifierInput.includes('@') ? identifierInput : `${selectedRole}@smartmedical.com`,
       name: nameInput,
       role: selectedRole,
-      phone: identifierInput.includes('+') ? identifierInput : phoneInput || '+91 8114240263',
+      phone: identifierInput.includes('+') ? identifierInput : phoneInput || '+91 98765 43210',
       abhaId: generatedAbha,
       licenseNo: generatedLicense,
       authenticatorSecret: authenticatorSecretKey,
@@ -297,7 +297,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       email: identifierInput || 'user@smartmedical.com',
       name: nameInput || activeDomain.defaultName,
       role: selectedRole,
-      phone: phoneInput || '+91 8114240263',
+      phone: phoneInput || '+91 98765 43210',
       abhaId: customAbha || 'ABHA-9102-4410-8812',
       isAuthenticatorEnabled: true,
     };
@@ -343,7 +343,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         email: identifierInput || 'user@smartmedical.com',
         name: nameInput || activeDomain.defaultName,
         role: selectedRole,
-        phone: phoneInput || '+91 8114240263',
+        phone: phoneInput || '+91 98765 43210',
         abhaId: customAbha || 'ABHA-9102-4410-8812',
         isAuthenticatorEnabled: true,
       };
@@ -740,7 +740,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       required
                       value={phoneInput}
                       onChange={(e) => setPhoneInput(e.target.value)}
-                      placeholder="+91 8114240263"
+                      placeholder="+91 98765 43210"
                       className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs font-mono"
                     />
                   </div>

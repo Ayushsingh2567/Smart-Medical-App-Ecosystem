@@ -215,7 +215,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         type="tel"
                         value={deliveryPhone}
                         onChange={(e) => setDeliveryPhone(e.target.value)}
-                        placeholder="+91 8114240263"
+                        placeholder="+91 98765 43210"
                         className="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-mono"
                       />
                     </div>

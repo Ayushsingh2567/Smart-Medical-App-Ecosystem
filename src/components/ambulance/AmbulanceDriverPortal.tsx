@@ -46,7 +46,7 @@ export const AmbulanceDriverPortal: React.FC = () => {
     patientName: 'Eleanor Vance',
     patientAge: 64,
     patientGender: 'Female',
-    patientPhone: '+91 8114240263',
+    patientPhone: '+91 98000 12345',
     pickupAddress: 'Flat 402, Green Avenue, Downtown Sector 4',
     destinationHospital: 'City Central Super Specialty Hospital (ICU Bed #04 Reserved)',
     urgency: 'CRITICAL',

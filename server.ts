@@ -937,7 +937,7 @@ app.post("/api/auth/verify-totp", async (req, res) => {
       email: email || "user@smartmedical.com",
       name: "Authenticated Member",
       role: "patient",
-      phone: "+91 8114240263",
+      phone: "+91 98765 43210",
       abhaId: "ABHA-9102-4410-8812",
       isEmailVerified: true,
       isPhoneVerified: true,
@@ -950,6 +950,17 @@ app.post("/api/auth/verify-totp", async (req, res) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: "TOTP verification failed" });
+  }
+});
+
+// Purge and reset database completely
+app.post("/api/admin/clean-database", async (req, res) => {
+  try {
+    await prisma.user.deleteMany({});
+    await prisma.auditLog.deleteMany({});
+    return res.json({ success: true, message: "Database cleaned completely!" });
+  } catch (err: any) {
+    res.status(500).json({ error: "Database clean failed", details: err.message });
   }
 });
 
