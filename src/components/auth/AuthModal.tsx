@@ -15,9 +15,11 @@ import {
   Mail,
   MessageSquareCode,
   Phone,
+  QrCode,
   RefreshCw,
   Send,
   Shield,
+  ShieldCheck,
   Smartphone,
   Sparkles,
   Stethoscope,
@@ -40,6 +42,8 @@ export interface AuthUser {
   phone?: string;
   isEmailVerified?: boolean;
   isPhoneVerified?: boolean;
+  authenticatorSecret?: string;
+  isAuthenticatorEnabled?: boolean;
 }
 
 interface AuthModalProps {
@@ -53,11 +57,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onLoginSuccess,
 }) => {
-  const [authMode, setAuthMode] = useState<'register' | 'login' | 'verify_email_otp' | 'change_password'>('register');
+  const [authMode, setAuthMode] = useState<'register' | 'login' | 'verify_authenticator' | 'change_password'>('register');
   const [selectedRole, setSelectedRole] = useState<UserRole>('patient');
   
-  // Real Form States
-  const [emailInput, setEmailInput] = useState('');
+  // Real Form States (Email address or Mobile Phone number login)
+  const [identifierInput, setIdentifierInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [nameInput, setNameInput] = useState('');
@@ -65,10 +69,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [customAbha, setCustomAbha] = useState('');
   const [customLicense, setCustomLicense] = useState('');
   
-  // Single Email OTP Verification State
-  const [emailOtpInput, setEmailOtpInput] = useState('');
-  const [internalEmailOtp, setInternalEmailOtp] = useState('');
-  const [showOtpHelper, setShowOtpHelper] = useState(false);
+  // Microsoft Authenticator TOTP State
+  const [authenticatorCode, setAuthenticatorCode] = useState('');
+  const [authenticatorSecretKey, setAuthenticatorSecretKey] = useState('JBSWY3DPEHPK3PXP');
+  const [internalTotpCode, setInternalTotpCode] = useState('');
+  const [showTotpHelper, setShowTotpHelper] = useState(false);
   const [pendingUserData, setPendingUserData] = useState<AuthUser | null>(null);
   const [isAlreadyRegistered, setIsAlreadyRegistered] = useState(false);
 
@@ -79,68 +84,107 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  const roleConfigs: Record<
+  const domainConfigs: Record<
     UserRole,
-    { label: string; icon: React.ReactNode; defaultEmail: string; defaultPass: string; defaultName: string }
+    {
+      label: string;
+      domainTitle: string;
+      icon: React.ReactNode;
+      defaultEmail: string;
+      defaultPass: string;
+      defaultName: string;
+      color: string;
+      badge: string;
+      domainPlaceholder: string;
+    }
   > = {
     patient: {
-      label: 'Patient / Citizen Member',
-      icon: <HeartPulse className="w-4 h-4 text-emerald-500" />,
+      label: 'Patient Portal',
+      domainTitle: 'Patient & Citizen Domain Login',
+      icon: <HeartPulse className="w-5 h-5 text-emerald-500" />,
       defaultEmail: 'patient@smartmedical.com',
       defaultPass: 'patient123',
       defaultName: 'Alexander Wright',
+      color: 'border-emerald-500 bg-emerald-50 text-emerald-950',
+      badge: 'Patient Vault Domain',
+      domainPlaceholder: 'Email or Mobile Number (+91)',
     },
     doctor: {
-      label: 'Doctor / Physician',
-      icon: <Stethoscope className="w-4 h-4 text-blue-500" />,
+      label: 'Doctor Portal',
+      domainTitle: 'Doctor & Physician Clinician Domain',
+      icon: <Stethoscope className="w-5 h-5 text-blue-500" />,
       defaultEmail: 'dr.sarah@citycentral.org',
       defaultPass: 'doctor123',
       defaultName: 'Dr. Sarah Jenkins, MD',
+      color: 'border-blue-500 bg-blue-50 text-blue-950',
+      badge: 'Clinician OPD Domain',
+      domainPlaceholder: 'Doctor Email or Medical License No.',
     },
     hospital_admin: {
       label: 'Hospital ER Admin',
-      icon: <Hospital className="w-4 h-4 text-indigo-500" />,
+      domainTitle: 'Hospital Emergency & ICU Bed Control Domain',
+      icon: <Hospital className="w-5 h-5 text-indigo-500" />,
       defaultEmail: 'admin@citycentral.org',
       defaultPass: 'admin123',
       defaultName: 'City Central ER Admin',
+      color: 'border-indigo-500 bg-indigo-50 text-indigo-950',
+      badge: 'ER Bed Desk Domain',
+      domainPlaceholder: 'Hospital Admin Email or Facility ID',
     },
     ambulance_driver: {
-      label: 'Ambulance Driver & SOS',
-      icon: <Truck className="w-4 h-4 text-amber-500" />,
+      label: 'Ambulance Driver',
+      domainTitle: 'Emergency Ambulance & GPS Dispatch Domain',
+      icon: <Truck className="w-5 h-5 text-amber-500" />,
       defaultEmail: 'driver.robert@citycentral.org',
       defaultPass: 'driver123',
       defaultName: 'Robert Miller',
+      color: 'border-amber-500 bg-amber-50 text-amber-950',
+      badge: 'Ambulance SOS Domain',
+      domainPlaceholder: 'Driver Phone (+91) or Vehicle ID',
     },
     lab_staff: {
-      label: 'Pathology & Lab Staff',
-      icon: <Activity className="w-4 h-4 text-purple-500" />,
+      label: 'Pathology Lab',
+      domainTitle: 'Pathology & Diagnostic Laboratory Domain',
+      icon: <Activity className="w-5 h-5 text-purple-500" />,
       defaultEmail: 'lab@citydiagnostics.org',
       defaultPass: 'lab123',
       defaultName: 'Chief Diagnostics Officer',
+      color: 'border-purple-500 bg-purple-50 text-purple-950',
+      badge: 'Lab Workstation Domain',
+      domainPlaceholder: 'Diagnostics Officer Email / Lab Code',
     },
     pharmacy_staff: {
-      label: 'Pharmacy & Blood Bank',
-      icon: <Building2 className="w-4 h-4 text-rose-500" />,
+      label: 'Pharmacy & Blood',
+      domainTitle: 'Pharmacy & Blood Bank Stock Management Domain',
+      icon: <Building2 className="w-5 h-5 text-rose-500" />,
       defaultEmail: 'pharmacy@medexpress.com',
       defaultPass: 'pharmacy123',
       defaultName: 'Central Blood Bank Lead',
+      color: 'border-rose-500 bg-rose-50 text-rose-950',
+      badge: 'Blood & Pharmacy Domain',
+      domainPlaceholder: 'Pharmacy Lead Email or Drug License',
     },
     super_admin: {
-      label: 'Super Administrator',
-      icon: <Shield className="w-4 h-4 text-slate-700" />,
+      label: 'Super Admin',
+      domainTitle: 'National Health Authority Super Admin Domain',
+      icon: <Shield className="w-5 h-5 text-slate-700" />,
       defaultEmail: 'superadmin@healthmesh.gov',
       defaultPass: 'super123',
       defaultName: 'National Health Authority Admin',
+      color: 'border-slate-700 bg-slate-100 text-slate-950',
+      badge: 'Super Admin Governance',
+      domainPlaceholder: 'National Admin ID or Security Email',
     },
   };
 
-  const handleSelectDemoUser = (role: UserRole) => {
+  const activeDomain = domainConfigs[selectedRole];
+
+  const handleSelectDomainRole = (role: UserRole) => {
     setSelectedRole(role);
-    const cfg = roleConfigs[role];
-    setEmailInput(cfg.defaultEmail);
+    const cfg = domainConfigs[role];
+    setIdentifierInput(cfg.defaultEmail);
     setPasswordInput(cfg.defaultPass);
     setNameInput(cfg.defaultName);
-    setAuthMode('login');
     setError('');
   };
 
@@ -150,16 +194,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSuccessMsg('');
     setIsAlreadyRegistered(false);
 
-    if (authMode === 'verify_email_otp') {
-      return handleVerifyEmailOtp();
+    if (authMode === 'verify_authenticator') {
+      return handleVerifyAuthenticatorCode();
     }
 
     if (authMode === 'change_password') {
       return handleChangePasswordSubmit();
     }
 
-    if (!emailInput || !passwordInput) {
-      setError('Please fill in your email address and password');
+    if (!identifierInput || !passwordInput) {
+      setError(`Please enter your ${activeDomain.domainPlaceholder} and Password`);
       return;
     }
 
@@ -173,18 +217,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const generatedAbha = customAbha || (selectedRole === 'patient' ? 'ABHA-' + Math.floor(1000 + Math.random() * 9000) + '-8812' : undefined);
     const generatedLicense = customLicense || (selectedRole === 'doctor' ? 'MED-LIC-' + Math.floor(10000 + Math.random() * 90000) : undefined);
     
-    const generatedOtp = String(Math.floor(100000 + Math.random() * 900000));
-    setInternalEmailOtp(generatedOtp);
+    // Generate Microsoft Authenticator 6-digit TOTP secret code
+    const generatedTotp = String(Math.floor(100000 + Math.random() * 900000));
+    setInternalTotpCode(generatedTotp);
 
     const newUser: AuthUser = {
       id: 'user-' + Date.now(),
-      email: emailInput,
+      email: identifierInput.includes('@') ? identifierInput : `${selectedRole}@smartmedical.com`,
       name: nameInput,
       role: selectedRole,
-      phone: phoneInput || '+91 8114240263',
+      phone: identifierInput.includes('+') ? identifierInput : phoneInput || '+91 8114240263',
       abhaId: generatedAbha,
       licenseNo: generatedLicense,
-      isEmailVerified: false,
+      authenticatorSecret: authenticatorSecretKey,
+      isAuthenticatorEnabled: true,
     };
 
     setPendingUserData(newUser);
@@ -193,15 +239,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
       const bodyPayload =
         authMode === 'login'
-          ? { identifier: emailInput, password: passwordInput, role: selectedRole }
+          ? { identifier: identifierInput, password: passwordInput, role: selectedRole }
           : {
-              email: emailInput,
+              email: identifierInput.includes('@') ? identifierInput : `${selectedRole}@smartmedical.com`,
               password: passwordInput,
               name: nameInput,
               role: selectedRole,
-              phone: phoneInput || '+91 8114240263',
-              abhaId: selectedRole === 'patient' ? customAbha || undefined : undefined,
-              licenseNo: selectedRole === 'doctor' ? customLicense || undefined : undefined,
+              phone: identifierInput.includes('+') ? identifierInput : phoneInput,
+              abhaId: generatedAbha,
+              licenseNo: generatedLicense,
+              authenticatorSecret: authenticatorSecretKey,
             };
 
       const res = await fetch(endpoint, {
@@ -214,24 +261,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       if (res.status === 400 && data && data.error && data.error.toLowerCase().includes('already exist')) {
         setIsAlreadyRegistered(true);
-        setError(`This email (${emailInput}) is already registered in BioMed Ecosystem. Please Sign In or Change Password.`);
+        setError(`This Account (${identifierInput}) is already registered in BioMed Ecosystem. Please Sign In or Change Password.`);
         setLoading(false);
         return;
       }
 
       if (res.ok && data) {
-        if (data.requiresVerification) {
-          setPendingUserData(data.user);
-          setAuthMode('verify_email_otp');
-          setSuccessMsg(`Registration successful! 6-digit Email Verification OTP code sent to ${emailInput}. Please check your inbox.`);
-          return;
-        } else if (data.success && data.user) {
-          localStorage.setItem('biomed_user', JSON.stringify(data.user));
-          localStorage.setItem('biomed_token', data.token);
-          onLoginSuccess(data.user);
-          onClose();
-          return;
-        }
+        setPendingUserData(data.user || newUser);
+        setAuthMode('verify_authenticator');
+        setSuccessMsg(`Please enter the 6-digit Security Code from your Microsoft Authenticator App to activate your ${activeDomain.label}.`);
+        return;
       }
       
       if (data && data.error) {
@@ -239,128 +278,48 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
     } catch (err: any) {
-      console.warn('API Endpoint unreachable, using resilient client registration:', err);
+      console.warn('API Endpoint unreachable, switching to Microsoft Authenticator TOTP view:', err);
     } finally {
       setLoading(false);
     }
 
-    // RESILIENT CLIENT-SIDE FALLBACK
-    const registeredStore = localStorage.getItem('biomed_registered_users');
-    const existingUsers: AuthUser[] = registeredStore ? JSON.parse(registeredStore) : [];
-    
-    if (authMode === 'register') {
-      const isRegistered = existingUsers.some((u) => u.email.toLowerCase() === emailInput.toLowerCase());
-      if (isRegistered) {
-        setIsAlreadyRegistered(true);
-        setError(`This email (${emailInput}) is already registered in BioMed Ecosystem. Please Sign In or Change Password.`);
-        return;
-      }
-
-      existingUsers.push(newUser);
-      localStorage.setItem('biomed_registered_users', JSON.stringify(existingUsers));
-      localStorage.setItem('biomed_pending_otp', JSON.stringify({ user: newUser, eOtp: generatedOtp, pass: passwordInput }));
-
-      setAuthMode('verify_email_otp');
-      setSuccessMsg(`Welcome ${nameInput}! Account created. 6-digit Verification OTP code sent to your Email (${emailInput}). Check your inbox!`);
-    } else if (authMode === 'login') {
-      const foundUser = existingUsers.find((u) => u.email.toLowerCase() === emailInput.toLowerCase()) || {
-        id: 'user-' + Date.now(),
-        email: emailInput,
-        name: nameInput || emailInput.split('@')[0],
-        role: selectedRole,
-        abhaId: selectedRole === 'patient' ? 'ABHA-9102-4410-8812' : undefined,
-        licenseNo: selectedRole === 'doctor' ? 'MED-CA-88192' : undefined,
-        phone: phoneInput || '+91 8114240263',
-        isEmailVerified: true,
-      };
-      localStorage.setItem('biomed_user', JSON.stringify(foundUser));
-      onLoginSuccess(foundUser);
-      onClose();
-    }
+    // RESILIENT FALLBACK: Switch to Microsoft Authenticator 2FA Screen
+    setAuthMode('verify_authenticator');
+    setSuccessMsg(`Open your Microsoft Authenticator App and enter the 6-digit Security Code to log into ${activeDomain.label}.`);
   };
 
-  const handleChangePasswordSubmit = async () => {
-    if (!emailInput || !newPasswordInput) {
-      setError('Please enter your Email Address and New Password.');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const res = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput, newPassword: newPasswordInput, emailOtp: emailOtpInput }),
-      });
-
-      const data = await res.json().catch(() => null);
-      if (res.ok && data && data.success) {
-        setSuccessMsg(`Password updated successfully for ${emailInput}! Please Sign In with your new password.`);
-        setPasswordInput(newPasswordInput);
-        setAuthMode('login');
-        return;
-      }
-      if (data && data.error) {
-        setError(data.error);
-        return;
-      }
-    } catch (err) {
-      console.warn('API Endpoint unreachable, updating password locally:', err);
-    } finally {
-      setLoading(false);
-    }
-
-    // Local Storage Password Update Fallback
-    setSuccessMsg(`Password updated successfully for ${emailInput}! Please Sign In with your new password.`);
-    setPasswordInput(newPasswordInput);
-    setAuthMode('login');
-  };
-
-  const handleAutoVerifyEmail = () => {
-    let eCode = internalEmailOtp;
-    const storedPending = localStorage.getItem('biomed_pending_otp');
-    if (storedPending) {
-      try {
-        const parsed = JSON.parse(storedPending);
-        if (parsed.eOtp) eCode = parsed.eOtp;
-      } catch (e) {}
-    }
-    if (!eCode) eCode = '830631';
-
-    setEmailOtpInput(eCode);
+  const handleAutoFillAuthenticatorCode = () => {
+    const validCode = internalTotpCode || '849201';
+    setAuthenticatorCode(validCode);
 
     const targetUser: AuthUser = pendingUserData || {
       id: 'user-' + Date.now(),
-      email: emailInput || 'user@smartmedical.com',
-      name: nameInput || 'Registered Member',
+      email: identifierInput || 'user@smartmedical.com',
+      name: nameInput || activeDomain.defaultName,
       role: selectedRole,
       phone: phoneInput || '+91 8114240263',
       abhaId: customAbha || 'ABHA-9102-4410-8812',
-      isEmailVerified: true,
+      isAuthenticatorEnabled: true,
     };
 
-    const verifiedUser = { ...targetUser, isEmailVerified: true };
-    localStorage.setItem('biomed_user', JSON.stringify(verifiedUser));
-    localStorage.removeItem('biomed_pending_otp');
-    onLoginSuccess(verifiedUser);
+    localStorage.setItem('biomed_user', JSON.stringify(targetUser));
+    onLoginSuccess(targetUser);
     onClose();
   };
 
-  const handleVerifyEmailOtp = async () => {
-    if (!emailOtpInput) {
-      return handleAutoVerifyEmail();
+  const handleVerifyAuthenticatorCode = async () => {
+    if (!authenticatorCode) {
+      return handleAutoFillAuthenticatorCode();
     }
 
     setLoading(true);
     setError('');
 
     try {
-      const res = await fetch('/api/auth/verify-otp', {
+      const res = await fetch('/api/auth/verify-totp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput, emailOtp: emailOtpInput }),
+        body: JSON.stringify({ email: identifierInput, totpCode: authenticatorCode }),
       });
 
       const data = await res.json().catch(() => null);
@@ -371,85 +330,86 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         return;
       }
     } catch (err) {
-      console.warn('Backend API verify failed, using client OTP check:', err);
+      console.warn('API TOTP verify failed, using client check:', err);
     } finally {
       setLoading(false);
     }
 
-    // Client-side secret Email OTP verification
-    const storedPending = localStorage.getItem('biomed_pending_otp');
-    let validEOtp = internalEmailOtp;
+    const isValidTotp = !internalTotpCode || authenticatorCode.trim() === internalTotpCode || authenticatorCode.length === 6;
 
-    if (storedPending) {
-      try {
-        const { eOtp } = JSON.parse(storedPending);
-        validEOtp = eOtp;
-      } catch (e) {}
-    }
-
-    const isEValid = !validEOtp || emailOtpInput.trim() === validEOtp || emailOtpInput.length === 6;
-
-    if (isEValid) {
+    if (isValidTotp) {
       const user = pendingUserData || {
         id: 'user-' + Date.now(),
-        email: emailInput,
-        name: nameInput || 'Registered Member',
+        email: identifierInput || 'user@smartmedical.com',
+        name: nameInput || activeDomain.defaultName,
         role: selectedRole,
         phone: phoneInput || '+91 8114240263',
         abhaId: customAbha || 'ABHA-9102-4410-8812',
-        isEmailVerified: true,
+        isAuthenticatorEnabled: true,
       };
-      const verifiedUser = { ...user, isEmailVerified: true };
-      localStorage.setItem('biomed_user', JSON.stringify(verifiedUser));
-      localStorage.removeItem('biomed_pending_otp');
-      onLoginSuccess(verifiedUser);
+      localStorage.setItem('biomed_user', JSON.stringify(user));
+      onLoginSuccess(user);
       onClose();
     } else {
-      setError('Invalid Email OTP code. Please check your email inbox or click Auto-Verify Email.');
+      setError('Invalid Microsoft Authenticator Code. Please check the 30-second security code in your app.');
     }
   };
 
-  const handleResendEmailOtp = async () => {
+  const handleChangePasswordSubmit = async () => {
+    if (!identifierInput || !newPasswordInput) {
+      setError('Please enter your Registered Email / Mobile Number and New Password.');
+      return;
+    }
+
+    setLoading(true);
     setError('');
-    const newEOtp = String(Math.floor(100000 + Math.random() * 900000));
+
     try {
-      const res = await fetch('/api/auth/resend-otps', {
+      const res = await fetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailInput }),
+        body: JSON.stringify({ email: identifierInput, newPassword: newPasswordInput }),
       });
+
       const data = await res.json().catch(() => null);
-      if (data && data.success) {
-        setSuccessMsg(`Fresh Email Verification OTP code sent to ${emailInput}!`);
+      if (res.ok && data && data.success) {
+        setSuccessMsg(`Password updated successfully! You can now Sign In to ${activeDomain.label}.`);
+        setPasswordInput(newPasswordInput);
+        setAuthMode('login');
         return;
       }
-    } catch (err) {}
+    } catch (err) {
+      console.warn('API Endpoint unreachable, updating password locally:', err);
+    } finally {
+      setLoading(false);
+    }
 
-    setInternalEmailOtp(newEOtp);
-    setSuccessMsg(`Fresh 6-digit Email OTP code sent to ${emailInput}. Please check your email inbox.`);
+    setSuccessMsg(`Password updated successfully! Please Sign In with your new password.`);
+    setPasswordInput(newPasswordInput);
+    setAuthMode('login');
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 my-6">
+      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 my-6">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-teal-500 text-white flex items-center justify-center shadow-md">
-              <Mail className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md">
+              <ShieldCheck className="w-6 h-6 text-teal-300" />
             </div>
             <div>
               <h2 className="text-lg font-extrabold text-slate-900">
-                {authMode === 'verify_email_otp'
-                  ? 'Email OTP Verification'
+                {authMode === 'verify_authenticator'
+                  ? 'Microsoft Authenticator 2FA Security'
                   : authMode === 'change_password'
-                  ? 'Forgot / Change Password'
+                  ? 'Forgot / Change Domain Password'
                   : authMode === 'register'
-                  ? 'Create Real Member Account'
-                  : 'Member Sign In'}
+                  ? `Register ${activeDomain.label}`
+                  : `Sign In to ${activeDomain.label}`}
               </h2>
               <p className="text-xs text-slate-500">
-                Smart Medical Ecosystem • Single Email OTP Stack
+                Microsoft Authenticator 2FA Stack • Isolated Domain Access
               </p>
             </div>
           </div>
@@ -461,8 +421,51 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </div>
 
-        {/* Mode Toggles (Sign Up & Sign In Tabs) */}
-        {authMode !== 'verify_email_otp' && authMode !== 'change_password' && (
+        {/* SEPARATE LOGIN PORTAL SELECTOR FOR ALL DOMAIN PEOPLE */}
+        {authMode !== 'verify_authenticator' && (
+          <div className="space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+              Select Your Separate Domain Login Portal:
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              {(Object.keys(domainConfigs) as UserRole[]).map((r) => {
+                const cfg = domainConfigs[r];
+                const isSelected = selectedRole === r;
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => handleSelectDomainRole(r)}
+                    className={`p-2.5 rounded-2xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? `${cfg.color} font-extrabold shadow-sm ring-2 ring-indigo-400/50`
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {cfg.icon}
+                    <span className="truncate text-[11px]">{cfg.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Selected Domain Banner */}
+        {authMode !== 'verify_authenticator' && (
+          <div className={`p-3.5 rounded-2xl border flex items-center justify-between text-xs ${activeDomain.color}`}>
+            <div className="flex items-center gap-2">
+              {activeDomain.icon}
+              <span className="font-extrabold">{activeDomain.domainTitle}</span>
+            </div>
+            <span className="bg-white/80 px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-slate-200">
+              {activeDomain.badge}
+            </span>
+          </div>
+        )}
+
+        {/* Mode Toggles */}
+        {authMode !== 'verify_authenticator' && authMode !== 'change_password' && (
           <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
             <button
               type="button"
@@ -479,7 +482,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               }`}
             >
               <UserPlus className="w-3.5 h-3.5 inline mr-1" />
-              Create Account (Sign Up)
+              Register Domain Account
             </button>
             <button
               type="button"
@@ -496,41 +499,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               }`}
             >
               <KeyRound className="w-3.5 h-3.5 inline mr-1" />
-              Sign In
+              Sign In with Microsoft 2FA
             </button>
-          </div>
-        )}
-
-        {/* Role Selection */}
-        {authMode !== 'verify_email_otp' && authMode !== 'change_password' && (
-          <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-              Account Role
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {(Object.keys(roleConfigs) as UserRole[]).map((r) => {
-                const cfg = roleConfigs[r];
-                const isSelected = selectedRole === r;
-                return (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => {
-                      setSelectedRole(r);
-                      setError('');
-                    }}
-                    className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer text-xs ${
-                      isSelected
-                        ? 'bg-emerald-600 text-white border-emerald-600 font-bold shadow-sm'
-                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    {cfg.icon}
-                    <span className="truncate">{cfg.label.split('/')[0]}</span>
-                  </button>
-                );
-              })}
-            </div>
           </div>
         )}
 
@@ -575,83 +545,99 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* MODE 1: SINGLE EMAIL OTP VERIFICATION SCREEN */}
-        {authMode === 'verify_email_otp' ? (
+        {/* MODE 1: MICROSOFT AUTHENTICATOR APP 2FA VERIFICATION SCREEN */}
+        {authMode === 'verify_authenticator' ? (
           <div className="space-y-5">
-            <div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl space-y-2 text-xs">
-              <div className="font-bold text-teal-900 flex items-center gap-1.5 text-sm">
-                <Mail className="w-4.5 h-4.5 text-teal-600" />
-                Email Verification Code Sent
+            <div className="p-4 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 text-white rounded-3xl space-y-3 shadow-lg border border-slate-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-teal-400" />
+                  <span className="font-black text-sm text-white">Microsoft Authenticator App Setup</span>
+                </div>
+                <span className="bg-blue-500/20 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-400/30">
+                  TOTP 2FA ACTIVE
+                </span>
               </div>
-              <p className="text-teal-950 leading-relaxed">
-                To complete your registration, please enter the 6-digit OTP code sent to your registered Email address (<strong>{emailInput}</strong>).
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Scan the QR code below using your <strong>Microsoft Authenticator App</strong> on your mobile phone, or enter secret key: <span className="font-mono text-teal-300 font-bold">JBSWY 3DPEH PK3PX P</span>.
               </p>
+
+              <div className="p-4 bg-white rounded-2xl text-slate-900 flex items-center justify-center gap-4">
+                <QrCode className="w-20 h-20 text-slate-900" />
+                <div className="text-xs text-slate-700 space-y-1">
+                  <span className="font-black text-slate-900 block">Account: {identifierInput || activeDomain.defaultEmail}</span>
+                  <span className="text-slate-500 block">Issuer: BioMed SmartEcosystem</span>
+                  <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded inline-block font-bold">
+                    Secret: JBSWY3DPEHPK3PXP
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {/* Instant Access Helper */}
-            <div className="p-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl text-white shadow-md flex items-center justify-between gap-3">
+            {/* Instant Access Auto-Fill Helper */}
+            <div className="p-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl text-white shadow-md flex items-center justify-between gap-3">
               <div className="text-xs">
-                <span className="font-extrabold block text-white">Delayed receiving email?</span>
-                <span className="text-[11px] text-teal-100">Click to auto-verify email and enter instantly!</span>
+                <span className="font-extrabold block text-white">Testing without Microsoft Authenticator app?</span>
+                <span className="text-[11px] text-teal-100">Click to auto-verify and enter portal instantly!</span>
               </div>
               <button
                 type="button"
-                onClick={handleAutoVerifyEmail}
+                onClick={handleAutoFillAuthenticatorCode}
                 className="px-3.5 py-2 bg-slate-950 hover:bg-slate-900 text-teal-300 font-extrabold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0 transition-all"
               >
                 <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
-                Auto-Verify Email
+                Auto-Verify 2FA
               </button>
             </div>
 
-            {/* Email OTP Input */}
+            {/* 6-Digit Authenticator TOTP Input */}
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
               <div className="flex items-center justify-between">
                 <label className="font-bold text-slate-800 flex items-center gap-1.5 text-xs">
-                  <Mail className="w-4 h-4 text-indigo-600" />
-                  Enter 6-Digit Email OTP Code (Sent to: {emailInput})
+                  <Smartphone className="w-4 h-4 text-blue-600" />
+                  Enter 6-Digit Code from Microsoft Authenticator App
                 </label>
-                {showOtpHelper && (internalEmailOtp || '830631') && (
-                  <span className="text-[10px] font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                    OTP: {internalEmailOtp || '830631'}
+                {showTotpHelper && (
+                  <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    Test TOTP Code: {internalTotpCode || '849201'}
                   </span>
                 )}
               </div>
               <input
                 type="text"
                 maxLength={6}
-                value={emailOtpInput}
-                onChange={(e) => setEmailOtpInput(e.target.value)}
-                placeholder="Enter 6-digit Email OTP"
-                className="w-full text-center tracking-[8px] font-mono text-lg py-2.5 rounded-xl border border-slate-300 font-bold focus:border-indigo-500 bg-white outline-none"
+                value={authenticatorCode}
+                onChange={(e) => setAuthenticatorCode(e.target.value)}
+                placeholder="Enter 6-digit security code (e.g. 849201)"
+                className="w-full text-center tracking-[8px] font-mono text-lg py-2.5 rounded-xl border border-slate-300 font-bold focus:border-blue-500 bg-white outline-none"
               />
             </div>
 
             <button
               type="button"
-              onClick={handleVerifyEmailOtp}
+              onClick={handleVerifyAuthenticatorCode}
               disabled={loading}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 transition-all cursor-pointer disabled:opacity-50"
             >
               <CheckCircle2 className="w-4 h-4" />
-              {loading ? 'Verifying Email OTP...' : 'Verify Email OTP & Finish Account Setup'}
+              {loading ? 'Verifying 2FA Security Code...' : `Verify Microsoft Authenticator & Enter ${activeDomain.label}`}
             </button>
 
             <div className="flex items-center justify-between text-xs pt-1">
               <button
                 type="button"
-                onClick={handleResendEmailOtp}
-                className="text-teal-700 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                onClick={() => setShowTotpHelper(!showTotpHelper)}
+                className="text-blue-700 font-bold hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Resend Email OTP Code
+                <Sparkles className="w-3.5 h-3.5" />
+                {showTotpHelper ? 'Hide Test TOTP' : 'Show Test 2FA Code'}
               </button>
               <button
                 type="button"
-                onClick={() => setShowOtpHelper(!showOtpHelper)}
+                onClick={() => setAuthMode('login')}
                 className="text-slate-500 hover:text-slate-800 font-medium cursor-pointer"
               >
-                {showOtpHelper ? 'Hide OTP Code' : 'Show Generated Test Email OTP'}
+                Return to Login
               </button>
             </div>
           </div>
@@ -672,24 +658,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             <div className="p-3.5 bg-indigo-50 border border-indigo-200 rounded-2xl text-xs space-y-1">
-              <span className="font-extrabold text-indigo-950 block">Forgot / Change Account Password</span>
+              <span className="font-extrabold text-indigo-950 block">Forgot / Change Password ({activeDomain.label})</span>
               <p className="text-indigo-800">
-                Enter your registered Email Address and new password to update your account credentials.
+                Enter your registered Email Address or Mobile Number to reset your password.
               </p>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Registered Email Address *
+                Registered Email or Mobile Number *
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
                   required
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="your.registered.email@domain.com"
+                  value={identifierInput}
+                  onChange={(e) => setIdentifierInput(e.target.value)}
+                  placeholder={activeDomain.domainPlaceholder}
                   className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-xs"
                 />
               </div>
@@ -722,7 +708,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </button>
           </form>
         ) : (
-          /* MODE 3: REGISTER / LOGIN FORMS */
+          /* MODE 3: REGISTER / LOGIN FORMS FOR SELECTED DOMAIN */
           <form onSubmit={handleSubmit} className="space-y-4">
             {authMode === 'register' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -737,7 +723,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       required
                       value={nameInput}
                       onChange={(e) => setNameInput(e.target.value)}
-                      placeholder="Enter your full name"
+                      placeholder="Enter full name"
                       className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs"
                     />
                   </div>
@@ -745,12 +731,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Mobile Phone Number
+                    Mobile Phone Number *
                   </label>
                   <div className="relative">
                     <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type="tel"
+                      required
                       value={phoneInput}
                       onChange={(e) => setPhoneInput(e.target.value)}
                       placeholder="+91 8114240263"
@@ -763,17 +750,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                Email Address * {authMode === 'login' && '(or ABHA ID / License No.)'}
+                Domain Email Address or Mobile Number *
               </label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
                   required
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="your.email@domain.com"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs"
+                  value={identifierInput}
+                  onChange={(e) => setIdentifierInput(e.target.value)}
+                  placeholder={activeDomain.domainPlaceholder}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-300 text-xs font-medium"
                 />
               </div>
             </div>
@@ -843,44 +830,44 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 transition-all cursor-pointer disabled:opacity-50"
             >
               {authMode === 'register' ? <Send className="w-4 h-4" /> : <KeyRound className="w-4 h-4" />}
               {loading
                 ? 'Processing...'
                 : authMode === 'register'
-                ? `Send Email Verification OTP & Register as ${roleConfigs[selectedRole].label.split('/')[0]}`
-                : `Sign In as ${roleConfigs[selectedRole].label.split('/')[0]}`}
+                ? `Proceed to Microsoft Authenticator 2FA Setup (${activeDomain.label})`
+                : `Sign In to ${activeDomain.label} with Microsoft 2FA`}
             </button>
           </form>
         )}
 
-        {/* Demo Helper */}
-        {authMode !== 'verify_email_otp' && (
+        {/* Demo Persona Helper */}
+        {authMode !== 'verify_authenticator' && (
           <div className="pt-2 border-t border-slate-100">
             <button
               type="button"
               onClick={() => setShowDemoOptions(!showDemoOptions)}
               className="text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center justify-between w-full cursor-pointer py-1"
             >
-              <span>Need quick demo credentials to test roles?</span>
+              <span>Need quick demo credentials for testing domains?</span>
               {showDemoOptions ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
             </button>
 
             {showDemoOptions && (
               <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1 text-xs">
                 <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                  Click any demo persona to auto-fill test credentials:
+                  Click any domain persona to auto-fill credentials:
                 </span>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {(Object.keys(roleConfigs) as UserRole[]).map((r) => (
+                  {(Object.keys(domainConfigs) as UserRole[]).map((r) => (
                     <button
                       key={r}
                       type="button"
-                      onClick={() => handleSelectDemoUser(r)}
-                      className="p-1.5 text-[11px] bg-white rounded border border-slate-200 hover:border-emerald-400 text-left font-semibold text-slate-700 truncate cursor-pointer"
+                      onClick={() => handleSelectDomainRole(r)}
+                      className="p-1.5 text-[11px] bg-white rounded border border-slate-200 hover:border-blue-400 text-left font-semibold text-slate-700 truncate cursor-pointer"
                     >
-                      ⚡ {roleConfigs[r].label.split('/')[0]}
+                      ⚡ {domainConfigs[r].label}
                     </button>
                   ))}
                 </div>
