@@ -106,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="Search Nearby Hospitals on Interactive Radar Map"
             >
               <Hospital className="w-4 h-4 text-indigo-600 shrink-0" />
-              <span className="hidden sm:inline">Search Hospital on Map</span>
+              <span className="hidden sm:inline">Hospitals & Clinics Near Me</span>
             </button>
 
             {/* Persona Switch (Only allowed for Super Admin when logged in) */}
