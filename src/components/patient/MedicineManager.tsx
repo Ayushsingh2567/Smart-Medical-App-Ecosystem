@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   ShoppingBag,
   Sparkles,
+  Stethoscope,
   Trash2,
   Truck,
   Upload,
@@ -25,6 +26,7 @@ import { PaymentModal } from '../payment/PaymentModal';
 
 export const MedicineManager: React.FC = () => {
   const [reminders, setReminders] = useState<MedicineReminder[]>([]);
+  const [doctorRxList, setDoctorRxList] = useState<any[]>([]);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [prescriptionText, setPrescriptionText] = useState('');
   const [ocrResult, setOcrResult] = useState<any>(null);
@@ -53,7 +55,7 @@ export const MedicineManager: React.FC = () => {
   const [activeDeliveries, setActiveDeliveries] = useState<PaymentTransaction[]>([]);
   const [deliverySuccessToast, setDeliverySuccessToast] = useState('');
 
-  // Load and sync reminders with localStorage
+  // Load and sync reminders & doctor prescriptions with localStorage
   useEffect(() => {
     const saved = localStorage.getItem('biomed_reminders');
     if (saved) {
@@ -64,6 +66,16 @@ export const MedicineManager: React.FC = () => {
         console.error('Error loading stored reminders:', err);
       }
     }
+
+    const savedRx = localStorage.getItem('biomed_doctor_prescriptions');
+    if (savedRx) {
+      try {
+        const parsedRx = JSON.parse(savedRx);
+        if (Array.isArray(parsedRx)) setDoctorRxList(parsedRx);
+      } catch (err) {
+        console.error('Error loading doctor prescriptions:', err);
+      }
+    }
   }, []);
 
   const saveRemindersToStorage = (updated: MedicineReminder[]) => {
@@ -71,7 +83,9 @@ export const MedicineManager: React.FC = () => {
     localStorage.setItem('biomed_reminders', JSON.stringify(updated));
   };
 
-  const handleInitiateHomeDelivery = (itemName: string, amount: number) => {
+  const handleInitiateHomeDelivery = (itemName: string, amount: number, doctorName?: string) => {
+    setOrderMedicineName(itemName);
+    if (doctorName) setDoctorPrescriptionName(doctorName);
     setOrderedItemName(itemName);
     setOrderTotalAmount(amount);
     setShowPaymentModal(true);
@@ -155,13 +169,13 @@ export const MedicineManager: React.FC = () => {
         <div className="relative z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 bg-rose-500/20 border border-rose-400/30 text-rose-300 px-3 py-1 rounded-full text-xs font-semibold mb-3">
             <ShoppingBag className="w-3.5 h-3.5" />
-            Express Pharmacy Home Delivery & Online Payment Gateway
+            Express Pharmacy Home Delivery & Inter-Portal Doctor Sync
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
-            Smart Medicine Manager & Home Delivery Service
+            Smart Medicine Manager & Doctor e-Rx Order Center
           </h1>
           <p className="text-slate-300 text-xs sm:text-sm">
-            Schedule dosage alarms, scan physical prescriptions, and order doorstep medicine delivery with live courier tracking & UPI/Card payment.
+            Order doorstep delivery of medicines written by your attending doctor, schedule daily alarms, and scan physical prescriptions.
           </p>
         </div>
 
@@ -190,6 +204,38 @@ export const MedicineManager: React.FC = () => {
           <div>
             <span className="font-bold block">Pharmacy Doorstep Order Confirmed!</span>
             {deliverySuccessToast}
+          </div>
+        </div>
+      )}
+
+      {/* ACTIVE DOCTOR PRESCRIPTIONS BANNER (DOCTOR PORTAL INTEGRATION) */}
+      {doctorRxList.length > 0 && (
+        <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-5 rounded-3xl border border-blue-700 space-y-3 shadow-xl">
+          <div className="flex items-center justify-between border-b border-blue-800/80 pb-2">
+            <span className="font-extrabold text-xs text-teal-300 uppercase tracking-widest flex items-center gap-2">
+              <Stethoscope className="w-4 h-4 text-teal-300" />
+              Doctor Prescribed Medications (Ready for 1-Click Order)
+            </span>
+            <span className="text-[10px] bg-teal-500/20 text-teal-200 border border-teal-400/30 px-2 py-0.5 rounded font-bold">
+              VERIFIED DOCTOR RX
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+            {doctorRxList.map((rx, idx) => (
+              <div key={idx} className="p-3.5 bg-slate-900/90 rounded-2xl border border-blue-800/60 flex flex-col justify-between space-y-2">
+                <div>
+                  <div className="font-extrabold text-white text-xs">{rx.name} ({rx.dosage})</div>
+                  <div className="text-[10px] text-teal-300 font-medium">{rx.frequency} • Prescribed by {rx.doctorName || 'Dr. Sarah Jenkins, MD'}</div>
+                </div>
+                <button
+                  onClick={() => handleInitiateHomeDelivery(rx.name, 35.00, rx.doctorName)}
+                  className="w-full py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-[11px] flex items-center justify-center gap-1 cursor-pointer transition-all shadow-md"
+                >
+                  <Truck className="w-3.5 h-3.5 fill-slate-950" /> Order for Doorstep Delivery
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -287,7 +333,7 @@ export const MedicineManager: React.FC = () => {
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleInitiateHomeDelivery(med.name, 35.00)}
+                      onClick={() => handleInitiateHomeDelivery(med.name, 35.00, med.prescribedBy)}
                       className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-[11px] cursor-pointer"
                     >
                       Re-order
