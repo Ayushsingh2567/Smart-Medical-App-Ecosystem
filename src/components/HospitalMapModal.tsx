@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   Clock,
   Compass,
+  Globe,
   Hospital as HospIcon,
   MapPin,
   Navigation,
@@ -19,6 +20,8 @@ export interface HealthcareFacility {
   id: string;
   name: string;
   type: 'Hospital' | 'General hospital' | 'Government hospital' | 'Medical clinic' | 'Trauma ER';
+  city: string;
+  state: string;
   address: string;
   distanceKm: number;
   openHours: string;
@@ -30,13 +33,16 @@ export interface HealthcareFacility {
   location: { lat: number; lng: number };
 }
 
-// REAL HOSPITAL DATASET FOR GREATER NOIDA & JUDGES SOCIETY / KNOWLEDGE PARK REGION
-const realGreaterNoidaFacilities: HealthcareFacility[] = [
+// PAN-INDIA HEALTHCARE FACILITY DATASET (COVERING ALL MAJOR METROS & STATES)
+const panIndiaFacilities: HealthcareFacility[] = [
+  // DELHI NCR & GREATER NOIDA
   {
-    id: 'hosp-gn-1',
+    id: 'fac-in-1',
     name: 'SPES Super Speciality Hospital',
     type: 'Hospital',
-    address: 'Pari Chowk, NRI City, Omega II, Greater Noida, Uttar Pradesh 201315',
+    city: 'Greater Noida',
+    state: 'Uttar Pradesh',
+    address: 'Pari Chowk, NRI City, Omega II, Greater Noida, UP 201315',
     distanceKm: 0.8,
     openHours: 'Open 24 hours',
     phone: '+91 90508 80099',
@@ -47,186 +53,208 @@ const realGreaterNoidaFacilities: HealthcareFacility[] = [
     location: { lat: 28.4636, lng: 77.5121 },
   },
   {
-    id: 'hosp-gn-2',
+    id: 'fac-in-2',
+    name: 'AIIMS (All India Institute of Medical Sciences)',
+    type: 'Government hospital',
+    city: 'New Delhi',
+    state: 'Delhi',
+    address: 'Sri Aurobindo Marg, Ansari Nagar, New Delhi 110029',
+    distanceKm: 32.0,
+    openHours: 'Open 24 hours',
+    phone: '+91 11 2658 8500',
+    website: 'https://www.aiims.edu/',
+    specialties: ['National Premier Referral', 'Cardiology', 'Oncology', 'Organ Transplant'],
+    rating: 4.8,
+    reviewsCount: 18920,
+    location: { lat: 28.5672, lng: 77.2100 },
+  },
+  {
+    id: 'fac-in-3',
+    name: 'Medanta - The Medicity',
+    type: 'Hospital',
+    city: 'Gurugram',
+    state: 'Haryana',
+    address: 'CH Baktawar Singh Road, Sector 38, Gurugram, Haryana 122001',
+    distanceKm: 48.5,
+    openHours: 'Open 24 hours',
+    phone: '+91 124 414 1414',
+    website: 'https://www.medanta.org/',
+    specialties: ['Heart Institute', 'Liver Transplant', 'Neurosciences', 'Robotic Surgery'],
+    rating: 4.7,
+    reviewsCount: 14500,
+    location: { lat: 28.4385, lng: 77.0425 },
+  },
+  {
+    id: 'fac-in-4',
     name: 'Kailash Hospital, Greater Noida',
     type: 'General hospital',
-    address: 'Plot No 23, near Pari Chowk, Knowledge Park I, Greater Noida, UP 201310',
+    city: 'Greater Noida',
+    state: 'Uttar Pradesh',
+    address: 'Plot No 23, Knowledge Park I, Greater Noida, UP 201310',
     distanceKm: 1.1,
     openHours: 'Open 24 hours',
     phone: '+91 120 232 7799',
     website: 'https://www.kailashhealthcare.com/',
-    specialties: ['General Medicine', 'Multispecialty', 'Trauma ER', 'Neurology'],
+    specialties: ['General Medicine', 'Multispecialty', 'Trauma ER'],
     rating: 4.6,
     reviewsCount: 4782,
     location: { lat: 28.4706, lng: 77.5053 },
   },
   {
-    id: 'hosp-gn-3',
-    name: 'Yatharth Super Speciality Hospital, Greater Noida',
+    id: 'fac-in-5',
+    name: 'Yatharth Super Speciality Hospital',
     type: 'Hospital',
-    address: 'Plot No 32, Block A, Omega-I, Greater Noida, Uttar Pradesh 201315',
+    city: 'Greater Noida',
+    state: 'Uttar Pradesh',
+    address: 'Plot No 32, Block A, Omega-I, Greater Noida, UP 201315',
     distanceKm: 1.4,
     openHours: 'Open 24 hours',
     phone: '+91 88004 47777',
     website: 'https://www.yatharthhospitals.com/',
-    specialties: ['Cardiology', 'Oncology', 'Joint Replacement', 'Gastroenterology'],
+    specialties: ['Cardiology', 'Oncology', 'Joint Replacement'],
     rating: 4.6,
     reviewsCount: 11358,
     location: { lat: 28.4517, lng: 77.5095 },
   },
+
+  // MUMBAI & MAHARASHTRA
   {
-    id: 'hosp-gn-4',
-    name: 'Sharda Hospital',
+    id: 'fac-in-6',
+    name: 'Lilavati Hospital & Research Centre',
     type: 'Hospital',
-    address: 'Plot No 32, 34, Knowledge Park III, Greater Noida, Uttar Pradesh 201310',
-    distanceKm: 2.2,
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    address: 'A-791, Bandra Reclamation, Bandra West, Mumbai, MH 400050',
+    distanceKm: 1350.0,
     openHours: 'Open 24 hours',
-    phone: '+91 84473 33999',
-    website: 'https://www.shardahospital.org/',
-    specialties: ['Medical College Hospital', 'Dental Clinic', 'Dermatology', 'Gynecology'],
-    rating: 4.5,
-    reviewsCount: 5729,
-    location: { lat: 28.4751, lng: 77.4823 },
-  },
-  {
-    id: 'hosp-gn-5',
-    name: 'Felix Hospital - Greater Noida',
-    type: 'General hospital',
-    address: 'NH-14, Block C, Gamma 1, Greater Noida, Uttar Pradesh 201308',
-    distanceKm: 2.5,
-    openHours: 'Open 24 hours',
-    phone: '+91 96670 64100',
-    website: 'https://www.felixhospital.com/',
-    specialties: ['Cancer Care', 'Pediatrics', 'Orthopedic Surgery', 'Neurology'],
-    rating: 4.9,
-    reviewsCount: 2817,
-    location: { lat: 28.4882, lng: 77.5022 },
-  },
-  {
-    id: 'hosp-gn-6',
-    name: 'Sharma Medicare Super Speciality Hospital and Trauma Centre',
-    type: 'Trauma ER',
-    address: 'NH-19A, L Block, Delta II, Greater Noida, Uttar Pradesh 201310',
-    distanceKm: 2.8,
-    openHours: 'Open 24 hours',
-    phone: '+91 120 232 6666',
-    website: 'https://www.sharmamedicarehospital.com/',
-    specialties: ['Trauma Center', 'Emergency ICU', 'Orthopedics', 'General Surgery'],
-    rating: 4.8,
-    reviewsCount: 2810,
-    location: { lat: 28.4874, lng: 77.5183 },
-  },
-  {
-    id: 'hosp-gn-7',
-    name: 'GIMS Hospital (Government Institute of Medical Sciences)',
-    type: 'Government hospital',
-    address: 'Greater Noida, Kasna Road, Uttar Pradesh 201310',
-    distanceKm: 3.4,
-    openHours: 'Open 24 hours',
-    phone: '+91 120 234 1738',
-    website: 'https://gims.ac.in/',
-    specialties: ['Govt Super Specialty', '24/7 Emergency', 'Affordable ICU', 'Pathology'],
-    rating: 3.7,
-    reviewsCount: 392,
-    location: { lat: 28.4328, lng: 77.5320 },
-  },
-  {
-    id: 'hosp-gn-8',
-    name: 'Fortis Hospital Greater Noida',
-    type: 'Hospital',
-    address: 'Block D, Industrial Area, Surajpur Site 4, Greater Noida, UP 201315',
-    distanceKm: 3.8,
-    openHours: 'Open 24 hours',
-    phone: '+91 88005 97374',
-    website: 'https://www.fortishealthcare.com/',
-    specialties: ['Heart Hospital', 'Oncology', 'Neurology', 'Gastroenterology'],
-    rating: 4.5,
-    reviewsCount: 2868,
-    location: { lat: 28.4491, lng: 77.5322 },
-  },
-  {
-    id: 'hosp-gn-9',
-    name: 'Bakson Multispeciality Hospital',
-    type: 'Hospital',
-    address: 'Plot No. 36, Knowledge Park I, Greater Noida, Uttar Pradesh 201310',
-    distanceKm: 1.3,
-    openHours: 'Open 24 hours',
-    phone: '+91 92893 22162',
-    website: 'https://baksonhospital.com/',
-    specialties: ['Dialysis Center', 'Gynecology', 'Urology', 'Radiology'],
-    rating: 4.4,
-    reviewsCount: 45,
-    location: { lat: 28.4678, lng: 77.5018 },
-  },
-  {
-    id: 'hosp-gn-10',
-    name: 'Surya Hospital - Managed By Vedansh Medicare',
-    type: 'General hospital',
-    address: '47, Knowledge Park III, Greater Noida, Uttar Pradesh 201308',
-    distanceKm: 1.9,
-    openHours: 'Open 24 hours',
-    phone: '+91 96504 94019',
-    website: 'http://www.vedanshmedicare.com/',
-    specialties: ['Super Speciality', 'Emergency Care', 'Dialysis Unit'],
+    phone: '+91 22 2675 1000',
+    website: 'https://www.lilavatihospital.com/',
+    specialties: ['Cardiology', 'Nephrology', 'Critical Care', 'Gastroenterology'],
     rating: 4.6,
-    reviewsCount: 616,
-    location: { lat: 28.4689, lng: 77.4856 },
+    reviewsCount: 8900,
+    location: { lat: 19.0512, lng: 72.8285 },
   },
   {
-    id: 'hosp-gn-11',
-    name: 'NAVIN HOSPITAL - Super Speciality Hospital',
+    id: 'fac-in-7',
+    name: 'Kokilaben Dhirubhai Ambani Hospital',
     type: 'Hospital',
-    address: 'NH-3, Pocket F, Sector Alpha II, Greater Noida, UP 201310',
-    distanceKm: 2.1,
+    city: 'Mumbai',
+    state: 'Maharashtra',
+    address: 'Rao Saheb, Achutrao Patwardhan Marg, Four Bungalows, Andheri West, Mumbai 400053',
+    distanceKm: 1355.0,
     openHours: 'Open 24 hours',
-    phone: '+91 99996 23102',
-    website: 'https://www.navinhospitals.com/',
-    specialties: ['Pediatrics', 'Obstetrics & Gynecology', 'ENT', 'Dental'],
-    rating: 4.4,
-    reviewsCount: 1103,
-    location: { lat: 28.4776, lng: 77.5186 },
-  },
-  {
-    id: 'hosp-gn-12',
-    name: 'Green City Hospital',
-    type: 'General hospital',
-    address: 'NH-17, Delta 1, Block C, Greater Noida, Uttar Pradesh 201308',
-    distanceKm: 2.7,
-    openHours: 'Open 24 hours',
-    phone: '+91 98118 57783',
-    website: 'https://greencityhospitals.co.in/',
-    specialties: ['General Medicine', 'Gynae & Maternity', 'Orthopedics'],
-    rating: 3.4,
-    reviewsCount: 262,
-    location: { lat: 28.4837, lng: 77.5269 },
-  },
-  {
-    id: 'hosp-gn-13',
-    name: 'Nix Multispeciality Hospital',
-    type: 'Hospital',
-    address: 'Plot 813, Sector 1, Aimnabad, Greater Noida, Uttar Pradesh 201318',
-    distanceKm: 6.5,
-    openHours: 'Open 24 hours',
-    phone: '+91 83838 00553',
-    website: 'https://www.nixhealthcare.org/',
-    specialties: ['Ambulance Service', 'Diagnostic Center', 'Pulmonology'],
-    rating: 4.6,
-    reviewsCount: 864,
-    location: { lat: 28.5608, lng: 77.4513 },
-  },
-  {
-    id: 'hosp-gn-14',
-    name: 'Swastham Medicare Hospital',
-    type: 'Hospital',
-    address: 'Plot No 107, Tech Zone IV, Iteda, Greater Noida, UP 201009',
-    distanceKm: 7.2,
-    openHours: 'Open 24 hours',
-    phone: '+91 97177 05323',
-    website: 'https://www.swasthamedicare.com/',
-    specialties: ['Emergency', 'General Surgery', 'Internal Medicine'],
+    phone: '+91 22 4269 6969',
+    website: 'https://www.kokilabenhospital.com/',
+    specialties: ['Childrens Heart Center', 'Robotic Surgery', 'Stroke Center'],
     rating: 4.7,
-    reviewsCount: 705,
-    location: { lat: 28.6008, lng: 77.4435 },
+    reviewsCount: 11200,
+    location: { lat: 19.1311, lng: 72.8252 },
+  },
+
+  // BENGALURU & KARNATAKA
+  {
+    id: 'fac-in-8',
+    name: 'Manipal Hospital, HAL Airport Road',
+    type: 'Hospital',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    address: '98, HAL Old Airport Rd, Kodihalli, Bengaluru, Karnataka 560017',
+    distanceKm: 2100.0,
+    openHours: 'Open 24 hours',
+    phone: '+91 80 2502 4444',
+    website: 'https://www.manipalhospitals.com/',
+    specialties: ['Cardiology', 'Neurology', 'Organ Transplant', 'Oncology'],
+    rating: 4.7,
+    reviewsCount: 15400,
+    location: { lat: 12.9582, lng: 77.6493 },
+  },
+  {
+    id: 'fac-in-9',
+    name: 'Narayana Health City (Narayana Hrudayalaya)',
+    type: 'Hospital',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+    address: '258/A, Bommasandra Industrial Area, Anekal Taluk, Bengaluru 560099',
+    distanceKm: 2120.0,
+    openHours: 'Open 24 hours',
+    phone: '+91 80 7122 2222',
+    website: 'https://www.narayanahealth.org/',
+    specialties: ['Pediatric Cardiac Surgery', 'Bone Marrow Transplant', 'Nephrology'],
+    rating: 4.8,
+    reviewsCount: 22100,
+    location: { lat: 12.8092, lng: 77.6974 },
+  },
+
+  // HYDERABAD & TELANGANA
+  {
+    id: 'fac-in-10',
+    name: 'KIMS Hospitals (Krishna Institute of Medical Sciences)',
+    type: 'Hospital',
+    city: 'Hyderabad',
+    state: 'Telangana',
+    address: '1-8-31/1, Minister Rd, Krishna Nagar Colony, Begumpet, Secunderabad, Telangana 500003',
+    distanceKm: 1580.0,
+    openHours: 'Open 24 hours',
+    phone: '+91 40 4488 5000',
+    website: 'https://www.kimshospitals.com/',
+    specialties: ['Heart & Lung Transplant', 'Neuro Surgery', 'Trauma Care'],
+    rating: 4.7,
+    reviewsCount: 9800,
+    location: { lat: 17.4344, lng: 78.4867 },
+  },
+
+  // CHENNAI & TAMIL NADU
+  {
+    id: 'fac-in-11',
+    name: 'Apollo Hospitals, Greams Road',
+    type: 'Hospital',
+    city: 'Chennai',
+    state: 'Tamil Nadu',
+    address: '21, Greams Lane, Thousand Lights, Chennai, Tamil Nadu 600006',
+    distanceKm: 2180.0,
+    openHours: 'Open 24 hours',
+    phone: '+91 44 2829 0200',
+    website: 'https://www.apollohospitals.com/',
+    specialties: ['Proton Therapy', 'Cardiology', 'Liver & Kidney Transplant'],
+    rating: 4.8,
+    reviewsCount: 16500,
+    location: { lat: 13.0604, lng: 80.2514 },
+  },
+
+  // KOLKATA & WEST BENGAL
+  {
+    id: 'fac-in-12',
+    name: 'Apollo Multispecialty Hospitals, Kolkata',
+    type: 'Hospital',
+    city: 'Kolkata',
+    state: 'West Bengal',
+    address: '58, Canal Circular Rd, Kadapara, Phool Bagan, Kankurgachi, Kolkata, WB 700054',
+    distanceKm: 1480.0,
+    openHours: 'Open 24 hours',
+    phone: '+91 33 2320 3040',
+    website: 'https://kolkata.apollohospitals.com/',
+    specialties: ['Cardiac Sciences', 'Neurosciences', 'Emergency Medicine'],
+    rating: 4.6,
+    reviewsCount: 12400,
+    location: { lat: 22.5726, lng: 88.3980 },
+  },
+
+  // AHMEDABAD & GUJARAT
+  {
+    id: 'fac-in-13',
+    name: 'Marengo CIMS Hospital',
+    type: 'Hospital',
+    city: 'Ahmedabad',
+    state: 'Gujarat',
+    address: 'Off Science City Road, Sola, Ahmedabad, Gujarat 380060',
+    distanceKm: 920.0,
+    openHours: 'Open 24 hours',
+    phone: '+91 79 4800 0000',
+    website: 'https://www.marengocims.com/',
+    specialties: ['Heart Care', 'Joint Replacement', 'Pulmonology'],
+    rating: 4.8,
+    reviewsCount: 8900,
+    location: { lat: 23.0754, lng: 72.5186 },
   },
 ];
 
@@ -240,28 +268,28 @@ export const HospitalMapModal: React.FC<HospitalMapModalProps> = ({
   onClose,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [facilityTypeFilter, setFacilityTypeFilter] = useState<string>('all');
-  const [selectedFacility, setSelectedFacility] = useState<HealthcareFacility>(realGreaterNoidaFacilities[0]);
+  const [selectedStateFilter, setSelectedStateFilter] = useState<string>('all');
+  const [selectedFacility, setSelectedFacility] = useState<HealthcareFacility>(panIndiaFacilities[0]);
 
   if (!isOpen) return null;
 
-  // Fuzzy Search Matcher to handle typos (e.g. "knowlege part 2" -> "knowledge park")
-  const normalize = (str: string) =>
-    str.toLowerCase().replace(/knowlege/g, 'knowledge').replace(/part/g, 'park').replace(/[^a-z0-9]/g, ' ');
+  // Search Normalizer
+  const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, ' ');
 
-  const filteredFacilities = realGreaterNoidaFacilities.filter((fac) => {
+  const filteredFacilities = panIndiaFacilities.filter((fac) => {
     const q = normalize(searchQuery.trim());
-    if (!q) return true;
+    const matchesState =
+      selectedStateFilter === 'all' ||
+      fac.state.toLowerCase().includes(selectedStateFilter.toLowerCase()) ||
+      fac.city.toLowerCase().includes(selectedStateFilter.toLowerCase());
+
+    if (!q) return matchesState;
 
     const tokens = q.split(/\s+/).filter(Boolean);
-    const targetText = normalize(`${fac.name} ${fac.address} ${fac.specialties.join(' ')} ${fac.type}`);
+    const targetText = normalize(`${fac.name} ${fac.city} ${fac.state} ${fac.address} ${fac.specialties.join(' ')} ${fac.type}`);
 
     const matchesSearch = tokens.every((token) => targetText.includes(token));
-
-    const matchesType =
-      facilityTypeFilter === 'all' || fac.type.toLowerCase().includes(facilityTypeFilter.toLowerCase());
-
-    return matchesSearch && matchesType;
+    return matchesSearch && matchesState;
   });
 
   return (
@@ -271,17 +299,17 @@ export const HospitalMapModal: React.FC<HospitalMapModalProps> = ({
         <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-600 text-white flex items-center justify-center shadow-md">
-              <MapPin className="w-6 h-6 text-teal-300" />
+              <Globe className="w-6 h-6 text-teal-300" />
             </div>
             <div>
               <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-                Hospitals & Clinics Near Me (Judges Society / Knowledge Park, Greater Noida)
-                <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold px-2.5 py-0.5 rounded-full border border-indigo-200">
-                  GREATER NOIDA GPS RADAR
+                Pan-India Hospital & Clinic Location Search Map
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  INDIA MAP SYNC 🇮🇳
                 </span>
               </h2>
               <p className="text-xs text-slate-500">
-                Discover nearby verified hospitals (SPES, Kailash, Yatharth, Sharda, GIMS, Fortis, Felix) with phone numbers and Google Maps navigation.
+                Search verified hospitals, clinics, and medical centers across all major Indian cities and states.
               </p>
             </div>
           </div>
@@ -293,7 +321,7 @@ export const HospitalMapModal: React.FC<HospitalMapModalProps> = ({
           </button>
         </div>
 
-        {/* Search & Filter Controls */}
+        {/* Search & State Filter Controls */}
         <div className="flex flex-col sm:flex-row items-center gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
@@ -301,26 +329,30 @@ export const HospitalMapModal: React.FC<HospitalMapModalProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by Hospital Name, Area (Knowledge Park, Pari Chowk, Omega, Delta, Alpha)..."
+              placeholder="Search hospital name, city (Delhi, Mumbai, Bengaluru, Hyderabad, Chennai, Kolkata)..."
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 focus:border-indigo-500 bg-white outline-none font-medium"
             />
           </div>
 
           <select
-            value={facilityTypeFilter}
-            onChange={(e) => setFacilityTypeFilter(e.target.value)}
+            value={selectedStateFilter}
+            onChange={(e) => setSelectedStateFilter(e.target.value)}
             className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 outline-none w-full sm:w-auto"
           >
-            <option value="all">All Healthcare Facilities ({realGreaterNoidaFacilities.length})</option>
-            <option value="Hospital">Super Specialty Hospitals</option>
-            <option value="General">General Hospitals</option>
-            <option value="Government">Government Hospitals (GIMS)</option>
-            <option value="Trauma">24/7 Trauma ER Centers</option>
+            <option value="all">🇮🇳 All India (Pan-India)</option>
+            <option value="Uttar Pradesh">Delhi NCR / UP (Greater Noida)</option>
+            <option value="Delhi">Delhi Capital Region</option>
+            <option value="Maharashtra">Mumbai & Maharashtra</option>
+            <option value="Karnataka">Bengaluru & Karnataka</option>
+            <option value="Telangana">Hyderabad & Telangana</option>
+            <option value="Tamil Nadu">Chennai & Tamil Nadu</option>
+            <option value="West Bengal">Kolkata & West Bengal</option>
+            <option value="Gujarat">Ahmedabad & Gujarat</option>
           </select>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Interactive Radar Location Map */}
+          {/* Interactive Pan-India Map View Canvas */}
           <div className="lg:col-span-7 bg-slate-950 rounded-3xl p-4 text-white relative min-h-[400px] border border-slate-800 overflow-hidden flex flex-col justify-between shadow-inner">
             {/* Map Canvas Background Grid */}
             <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] opacity-40 pointer-events-none" />
@@ -334,11 +366,11 @@ export const HospitalMapModal: React.FC<HospitalMapModalProps> = ({
               <div className="flex items-center gap-2">
                 <Compass className="w-4 h-4 text-teal-400 animate-spin" />
                 <span className="font-mono text-teal-300 font-bold text-[11px]">
-                  YOUR LOCATION: Judges Society, Knowledge Park, Greater Noida
+                  PAN-INDIA MAP COVERAGE: ACTIVE
                 </span>
               </div>
               <span className="text-[10px] bg-teal-500/20 text-teal-300 border border-teal-400/30 px-2.5 py-0.5 rounded font-bold">
-                {filteredFacilities.length} HOSPITALS FOUND
+                {filteredFacilities.length} PAN-INDIA HOSPITALS
               </span>
             </div>
 
@@ -383,7 +415,7 @@ export const HospitalMapModal: React.FC<HospitalMapModalProps> = ({
                       >
                         <HospIcon className="w-3 h-3 text-red-400" />
                         <span>{fac.name.split(' ')[0]}</span>
-                        <span className="font-mono text-[9px] opacity-90">({fac.distanceKm}km)</span>
+                        <span className="font-mono text-[9px] opacity-90">({fac.city})</span>
                       </div>
 
                       <div className={`w-2 h-2 rotate-45 -mt-1 ${isSelected ? 'bg-teal-400' : 'bg-slate-900'}`} />
@@ -398,12 +430,12 @@ export const HospitalMapModal: React.FC<HospitalMapModalProps> = ({
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="text-[10px] text-teal-400 font-extrabold uppercase tracking-wider">
-                    {selectedFacility.type}
+                    {selectedFacility.city}, {selectedFacility.state}
                   </span>
                   <span className="text-[10px] text-amber-300 font-mono font-bold">★ {selectedFacility.rating} ({selectedFacility.reviewsCount} reviews)</span>
                 </div>
                 <h4 className="font-extrabold text-white text-sm">{selectedFacility.name}</h4>
-                <p className="text-[11px] text-slate-300 mt-0.5">{selectedFacility.address} • <strong className="text-teal-300">{selectedFacility.distanceKm} km from Judges Society</strong></p>
+                <p className="text-[11px] text-slate-300 mt-0.5">{selectedFacility.address}</p>
               </div>
 
               <a
@@ -413,7 +445,7 @@ export const HospitalMapModal: React.FC<HospitalMapModalProps> = ({
                 className="px-3.5 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold rounded-xl text-[11px] flex items-center gap-1.5 shadow-md cursor-pointer shrink-0 transition-all"
               >
                 <Navigation className="w-3.5 h-3.5 fill-slate-950" />
-                Open Google Maps GPS
+                Open Google Maps
               </a>
             </div>
           </div>
@@ -421,17 +453,20 @@ export const HospitalMapModal: React.FC<HospitalMapModalProps> = ({
           {/* Facilities List Side Panel */}
           <div className="lg:col-span-5 space-y-3 max-h-[420px] overflow-y-auto pr-1">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Greater Noida Hospitals ({filteredFacilities.length})
+              India Healthcare Network ({filteredFacilities.length})
             </h3>
 
             {filteredFacilities.length === 0 ? (
               <div className="py-12 text-center text-slate-400 text-xs space-y-2">
-                <p className="font-bold">No exact hospital matches found for your search query.</p>
+                <p className="font-bold">No hospital matches found for your search query.</p>
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedStateFilter('all');
+                  }}
                   className="px-3 py-1.5 bg-slate-900 text-white rounded-xl font-bold"
                 >
-                  Clear Search & View All Hospitals
+                  Clear Search & View All India Hospitals
                 </button>
               </div>
             ) : (
@@ -451,13 +486,13 @@ export const HospitalMapModal: React.FC<HospitalMapModalProps> = ({
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="font-extrabold text-slate-900 text-xs">{fac.name}</h4>
-                          <span className="bg-slate-200 text-slate-800 text-[9px] font-bold px-1.5 py-0.5 rounded">
-                            {fac.type}
+                          <span className="bg-indigo-100 text-indigo-800 text-[9px] font-extrabold px-1.5 py-0.5 rounded">
+                            {fac.city}
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
                           <MapPin className="w-3 h-3 text-red-500 shrink-0" />
-                          {fac.address} • <strong className="text-slate-800 font-mono">{fac.distanceKm} km</strong>
+                          {fac.address}
                         </p>
                       </div>
                       <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0">
