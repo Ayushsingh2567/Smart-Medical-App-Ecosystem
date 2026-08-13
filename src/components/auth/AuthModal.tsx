@@ -613,46 +613,40 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* MODE 1: MICROSOFT AUTHENTICATOR APP 2FA VERIFICATION SCREEN (CODES IN APP ONLY) */}
         {authMode === 'verify_authenticator' ? (
           <div className="space-y-5">
-            <div className="p-4 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 text-white rounded-3xl space-y-3 shadow-lg border border-slate-800">
-              <div className="flex items-center justify-between">
+            <div className="p-5 bg-gradient-to-br from-blue-950 via-slate-900 to-indigo-950 text-white rounded-3xl space-y-4 shadow-xl border border-slate-800 text-center">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5 text-teal-400" />
-                  <span className="font-black text-sm text-white">Microsoft Authenticator App 2FA Security</span>
+                  <span className="font-black text-sm text-white">Microsoft Authenticator App Setup</span>
                 </div>
                 <span className="bg-blue-500/20 text-blue-300 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-400/30">
-                  TOTP APP REQUIRED
+                  TOTP 2FA ACTIVE
                 </span>
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Open your <strong>Microsoft Authenticator App</strong> on your mobile phone to get your live 6-digit security code. Scan QR code or enter secret key: <span className="font-mono text-teal-300 font-bold">JBSWY 3DPEH PK3PX P</span>.
+
+              <p className="text-xs text-slate-300 leading-relaxed max-w-lg mx-auto">
+                Scan the QR code below using your <strong>Microsoft Authenticator App</strong> on your mobile phone, or type the secret setup key into the app.
               </p>
 
-              <div className="p-4 bg-white rounded-2xl text-slate-900 flex items-center justify-center gap-4">
-                <QrCode className="w-20 h-20 text-slate-900" />
-                <div className="text-xs text-slate-700 space-y-1">
-                  <span className="font-black text-slate-900 block">Account: {identifierInput || activeDomain.defaultEmail}</span>
-                  <span className="text-slate-500 block">Issuer: BioMed SmartEcosystem</span>
-                  <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded inline-block font-bold">
-                    Key: JBSWY3DPEHPK3PXP
-                  </span>
+              {/* REAL LARGE HIGH-RESOLUTION SCANNABLE TOTP QR CODE */}
+              <div className="p-4 bg-white rounded-3xl inline-block border-4 border-teal-500/30 shadow-2xl my-2">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=10&data=${encodeURIComponent(
+                    `otpauth://totp/BioMed:${encodeURIComponent(identifierInput || activeDomain.defaultEmail)}?secret=${authenticatorSecretKey}&issuer=BioMedSmartEcosystem`
+                  )}`}
+                  alt="Microsoft Authenticator 2FA QR Code"
+                  className="w-48 h-48 sm:w-56 sm:h-56 mx-auto rounded-xl object-contain"
+                />
+              </div>
+
+              <div className="space-y-1 text-xs">
+                <span className="text-slate-400 text-[11px] block font-medium">
+                  Account: <strong className="text-white font-mono">{identifierInput || activeDomain.defaultEmail}</strong>
+                </span>
+                <div className="inline-block bg-slate-900/90 border border-teal-400/30 px-3 py-1.5 rounded-xl font-mono text-xs text-teal-300 font-bold tracking-wider">
+                  Secret Key: JBSWY 3DPEH PK3PX P
                 </div>
               </div>
-            </div>
-
-            {/* Instant Access Auto-Fill Helper */}
-            <div className="p-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl text-white shadow-md flex items-center justify-between gap-3">
-              <div className="text-xs">
-                <span className="font-extrabold block text-white">Testing without mobile phone app right now?</span>
-                <span className="text-[11px] text-teal-100">Click to auto-verify 2FA and enter portal instantly!</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleAutoFillAuthenticatorCode}
-                className="px-3.5 py-2 bg-slate-950 hover:bg-slate-900 text-teal-300 font-extrabold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0 transition-all"
-              >
-                <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
-                Auto-Verify 2FA
-              </button>
             </div>
 
             {/* 6-Digit Authenticator Code Input */}
